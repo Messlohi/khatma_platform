@@ -20,7 +20,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "khatma.db")
 GLOBAL_GID = 1  # Unified Global ID for Bot and Web
 TOTAL_HIZBS = 60
-PROXY_URL = "http://proxy.server:3128" # Required for PythonAnywhere
+# Required for PythonAnywhere free tier, irrelevant locally
+PROXY_URL = "http://proxy.server:3128" if "PYTHONANYWHERE_DOMAIN" in os.environ else None
 
 # --- Messages (Arabic) ---
 MSG_WELCOME = (
