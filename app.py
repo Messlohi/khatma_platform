@@ -134,6 +134,14 @@ class DatabaseManager:
                                (wid, name, "web_user", pin if pin else None, khatma_id))
                     conn.commit(); self.bump(); return int(wid), "success"
 
+    def is_admin(self, uid, khatma_id):
+        """Check if user is admin of the specified Khatma"""
+        if not uid or not khatma_id:
+            return False
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT admin_uid FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
+            return row and int(row[0]) == int(uid)
+
     def assign_hizb(self, user_id, hizb_num, khatma_id=None):
         try:
             with self.get_connection() as conn:
@@ -230,12 +238,31 @@ class DatabaseManager:
                 ass[n].append(h)
             return int(c), int(a), ass
 
-    def get_participants_activity(self):
+    def get_participants_activity(self, khatma_id=None):
         with self.get_connection() as conn:
-            # Get Active
-            active_rows = conn.execute("SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.group_id = ?", (GLOBAL_GID,)).fetchall()
-            # Get Completed
-            comp_rows = conn.execute("SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", (GLOBAL_GID,)).fetchall()
+            # Filter by khatma_id if provided, otherwise use GLOBAL_GID for backward compatibility
+            if khatma_id:
+                # Get Active for this Khatma
+                active_rows = conn.execute(
+                    "SELECT COALESCE(u.full_name, 'مشارك'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.khatma_id = ?", 
+                    (khatma_id,)
+                ).fetchall()
+                # Get Completed for this Khatma
+                comp_rows = conn.execute(
+                    "SELECT COALESCE(u.full_name, 'مشارك'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.khatma_id = ?", 
+                    (khatma_id,)
+                ).fetchall()
+            else:
+                # Legacy: Get Active for global bot
+                active_rows = conn.execute(
+                    "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.group_id = ?", 
+                    (GLOBAL_GID,)
+                ).fetchall()
+                # Get Completed for global bot
+                comp_rows = conn.execute(
+                    "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", 
+                    (GLOBAL_GID,)
+                ).fetchall()
             
             data = {}
             for name, hizb in active_rows:
@@ -668,7 +695,7 @@ def api_status():
             khatma_name = "ختمة عائلة العلمي"
         
         intentions = db.get_intentions()
-        parts = db.get_participants_activity()
+        parts = db.get_participants_activity(khatma_id) if khatma_id else db.get_participants_activity()
 
         return jsonify({
             "completed_count": int(c), "active_count": int(a), "remaining_count": 60-int(c)-int(a),
@@ -683,11 +710,18 @@ def api_status():
 @app.route("/api/check_update")
 def check_update(): return jsonify({"version": db.get_v()})
 
+
 @app.route("/api/login", methods=["POST"])
 def api_login():
-    d = request.get_json(); uid, s = db.register_web_user(d.get("name"), d.get("pin"))
+    d = request.get_json()
+    khatma_id = d.get("khatma_id")
+    uid, s = db.register_web_user(d.get("name"), d.get("pin"), khatma_id)
     if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
-    return jsonify({"success": True, "uid": uid})
+    
+    # Check if user is admin of this Khatma
+    is_admin = db.is_admin(uid, khatma_id) if khatma_id else False
+    
+    return jsonify({"success": True, "uid": uid, "is_admin": is_admin})
 
 @app.route("/api/intention", methods=["POST"])
 def api_add_intention():

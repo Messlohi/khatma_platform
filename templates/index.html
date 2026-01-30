@@ -321,6 +321,8 @@
 
                 <button class="btn btn-primary" onclick="showCreateForm()" data-t="create_btn">إنشاء ختمة جديدة
                     ✨</button>
+                <button class="btn btn-secondary" onclick="showAdminLogin()" style="width: 100%; margin-top: 15px;">🔑
+                    دخول لوحة التحكم (Admin)</button>
             </div>
 
             <!-- Create Form -->
@@ -382,6 +384,35 @@
                     <button class="btn btn-primary" onclick="goToKhatma()" style="margin-top: 15px;"
                         data-t="goto_khatma">الذهاب إلى الختمة →</button>
                 </div>
+            </div>
+
+            <!-- Admin Login Form -->
+            <div id="admin-login" class="hidden">
+                <button class="back-btn" onclick="showWelcome()">← <span>رجوع</span></button>
+
+                <h2 style="margin-bottom: 10px; color: var(--primary);">🔑 دخول لوحة التحكم</h2>
+                <p style="margin-bottom: 30px; color: #6b7280;">أدخل بيانات الأدمن للوصول إلى لوحة التحكم</p>
+
+                <form onsubmit="adminLogin(event)">
+                    <div class="form-group">
+                        <label>👤 اسم الأدمن</label>
+                        <input type="text" id="admin-login-name" placeholder="اسم المنظم" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔒 الرمز السري</label>
+                        <input type="password" id="admin-login-pin" placeholder="••••" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>🔗 معرف الختمة (Khatma ID)</label>
+                        <input type="text" id="admin-khatma-id" placeholder="مثال: abc123" required>
+                        <small style="color: #6b7280; font-size: 0.9rem;">* معرف الختمة موجود في الرابط:
+                            /khatma/<strong>abc123</strong></small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">دخول لوحة التحكم →</button>
+                </form>
             </div>
         </div>
     </div>
@@ -523,6 +554,13 @@
                     const link = `${window.location.origin}/khatma/${createdKhatmaId}`;
                     document.getElementById('khatma-link').textContent = link;
 
+                    // IMPORTANT: Store admin credentials for automatic login
+                    localStorage.setItem('web_user_name', adminName);
+                    localStorage.setItem('web_user_pin', adminPin);
+                    localStorage.setItem('web_user_uid', data.admin_uid);
+                    localStorage.setItem('is_admin', 'true');
+                    localStorage.setItem('admin_khatma_id', createdKhatmaId);
+
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('success-screen').classList.remove('hidden');
                 } else {
@@ -547,6 +585,58 @@
 
         function goToKhatma() {
             window.location.href = `/khatma/${createdKhatmaId}`;
+        }
+
+        function showAdminLogin() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('create-form').classList.add('hidden');
+            document.getElementById('admin-login').classList.remove('hidden');
+        }
+
+        async function adminLogin(event) {
+            event.preventDefault();
+
+            const adminName = document.getElementById('admin-login-name').value;
+            const adminPin = document.getElementById('admin-login-pin').value;
+            const khatmaId = document.getElementById('admin-khatma-id').value;
+
+            document.getElementById('admin-login').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+
+            try {
+                // Verify admin credentials
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: adminName,
+                        pin: adminPin,
+                        khatma_id: khatmaId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.is_admin) {
+                    // Store admin session
+                    localStorage.setItem('web_user_name', adminName);
+                    localStorage.setItem('web_user_pin', adminPin);
+                    localStorage.setItem('web_user_uid', data.uid);
+                    localStorage.setItem('is_admin', 'true');
+                    localStorage.setItem('admin_khatma_id', khatmaId);
+
+                    // Redirect to Khatma control panel
+                    window.location.href = `/khatma/${khatmaId}`;
+                } else {
+                    alert('خطأ: ' + (data.error || 'بيانات الأدمن غير صحيحة أو ليس لديك صلاحيات'));
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('admin-login').classList.remove('hidden');
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال: ' + error);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('admin-login').classList.remove('hidden');
+            }
         }
     </script>
 </body>

@@ -880,9 +880,20 @@
             const khatmaId = window.location.pathname.split('/').filter(p => p)[1]; // /khatma/<id> -> get <id>
 
             var currentHizb = null;
-            var webUserName = localStorage.getItem('web_user_name');
-            var webUserPin = localStorage.getItem('web_user_pin');
-            var webUserUid = localStorage.getItem('web_user_uid');
+            var webUserName = localStorage.getItem('web_user_name') || null;
+            var webUserPin = localStorage.getItem('web_user_pin') || null;
+            var webUserUid = localStorage.getItem('web_user_uid') || null;
+
+            // Validate and clean session - if uid exists but is invalid, clear everything
+            if (webUserUid && (webUserUid === 'null' || webUserUid === 'undefined' || !webUserName)) {
+                localStorage.removeItem('web_user_uid');
+                localStorage.removeItem('web_user_name');
+                localStorage.removeItem('web_user_pin');
+                webUserUid = null;
+                webUserName = null;
+                webUserPin = null;
+            }
+
             var currentLang = localStorage.getItem('khatma_lang') || 'ar';
             var myAssignments = JSON.parse(localStorage.getItem('my_assignments') || '[]');
             var serverVersion = 0;
@@ -1224,6 +1235,20 @@
                 updateUI();
                 showLoading(true);
                 try {
+                    // Check if user is admin of THIS Khatma
+                    const isAdmin = localStorage.getItem('is_admin') === 'true';
+                    const adminKhatmaId = localStorage.getItem('admin_khatma_id');
+
+                    if (isAdmin && adminKhatmaId === khatmaId && webUserUid) {
+                        // User is admin of this Khatma - open control panel directly
+                        await fetchStatus();
+                        renderGrid();
+                        renderParticipants();
+                        showLoading(false);
+                        openAdmin(); // Open control panel
+                        return;
+                    }
+
                     if (webUserName) document.getElementById('user-name').value = webUserName;
                     if (webUserPin) document.getElementById('user-pin').value = webUserPin;
                     await fetchStatus();
@@ -1620,7 +1645,7 @@
             async function joinHizb() {
                 const name = document.getElementById('user-name').value.trim();
                 const pin = document.getElementById('user-pin').value.trim();
-                if (!name) return alert('أدخل اسمك');
+                if (!name) return await customAlert('أدخل اسمك', '', '⚠️');
                 showLoading(true);
                 try {
                     // Check if admin login
@@ -1631,7 +1656,7 @@
                             webUserName = "Admin"; webUserUid = "admin"; webUserPin = pin;
                             localStorage.setItem('web_user_uid', 'admin'); localStorage.setItem('web_user_name', 'Admin'); localStorage.setItem('web_user_pin', pin);
                             closeModal(); await init(); return;
-                        } else { alert(data.error); showLoading(false); return; }
+                        } else { await customAlert(data.error, '', '❌'); showLoading(false); return; }
                     }
 
                     const body = { name, pin };
@@ -1648,10 +1673,18 @@
                     if (data.success) {
                         webUserUid = data.uid; webUserName = name; webUserPin = pin;
                         localStorage.setItem('web_user_uid', webUserUid); localStorage.setItem('web_user_name', webUserName); localStorage.setItem('web_user_pin', webUserPin);
+
+                        // Check if user is admin - redirect to admin panel
+                        if (data.is_admin) {
+                            localStorage.setItem('is_admin', 'true');
+                            window.location.href = '/?admin=true';
+                            return;
+                        }
+
                         closeModal(); await init();
                         if (currentHizb) openReadPrompt();
-                    } else { alert(data.error); showLoading(false); }
-                } catch (e) { alert('خطأ في الاتصال'); showLoading(false); }
+                    } else { await customAlert(data.error, '', '❌'); showLoading(false); }
+                } catch (e) { await customAlert('خطأ في الاتصال', '', '❌'); showLoading(false); }
             }
 
             function handleLoginClick() {
