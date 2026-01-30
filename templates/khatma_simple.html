@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ khatma.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #065f46;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #f0fdf4;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #065f46;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .hizb-btn {
+            padding: 15px;
+            border: 2px solid #d1d5db;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .hizb-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .hizb-btn.taken {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .hizb-btn.completed {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #065f46;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #047857;
+        }
+
+        .share-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 id="khatma-name">{{ khatma.name }}</h1>
+
+        <div class="share-section">
+            <p>شارك هذا الرابط مع عائلتك:</p>
+            <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 8px; font-family: monospace;"
+                id="share-link">
+                {{ request.url }}
+            </div>
+            <button class="btn btn-primary" onclick="copyLink()">📋 نسخ الرابط</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="completed">0</div>
+                <div class="stat-label">مكتمل</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="active">0</div>
+                <div class="stat-label">قيد القراءة</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="remaining">60</div>
+                <div class="stat-label">متبقي</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-khatmas">{{ khatma.total_khatmas }}</div>
+                <div class="stat-label">عدد الختمات</div>
+            </div>
+        </div>
+
+        <div class="grid" id="hizb-grid"></div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-primary" id="login-btn" onclick="showLogin()">دخول / تسجيل</button>
+        </div>
+    </div>
+
+    <script>
+        // Extract khatma_id from URL
+        const khatmaId = window.location.pathname.split('/')[2];
+        let webUserUid = localStorage.getItem('user_id');
+        let webUserName = localStorage.getItem('user_name');
+
+        async function init() {
+            try {
+                const response = await fetch(`/api/khatma?khatma_id=${khatmaId}&uid=${webUserUid || ''}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+
+                // Update stats
+                document.getElementById('completed').textContent = data.completed_count;
+                document.getElementById('active').textContent = data.active_count;
+                document.getElementById('remaining').textContent = data.remaining_count;
+                document.getElementById('total-khatmas').textContent = data.total_khatmas;
+
+                if (data.khatma_name) {
+                    document.getElementById('khatma-name').textContent = data.khatma_name;
+                }
+
+                // Render grid
+                renderGrid(data);
+
+                // Update login button
+                if (webUserUid) {
+                    document.getElementById('login-btn').textContent = webUserName || 'مستخدم';
+                }
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        function renderGrid(data) {
+            const grid = document.getElementById('hizb-grid');
+            grid.innerHTML = '';
+
+            const taken = new Set();
+            const completed = new Set();
+
+            // Mark taken hizbs
+            Object.values(data.assignments || {}).forEach(hizbs => {
+                hizbs.forEach(h => taken.add(h));
+            });
+
+            // Build grid
+            for (let i = 1; i <= 60; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'hizb-btn';
+                btn.textContent = i;
+
+                if (data.available_hizbs && !data.available_hizbs.includes(i)) {
+                    btn.classList.add('taken');
+                }
+
+                if (data.my_assignments && data.my_assignments.includes(i)) {
+                    btn.style.background = '#bfdbfe';
+                    btn.style.borderColor = '#3b82f6';
+                    btn.onclick = () => markDone(i);
+                } else if (data.available_hizbs && data.available_hizbs.includes(i)) {
+                    btn.onclick = () => reserveHizb(i);
+                }
+
+                grid.appendChild(btn);
+            }
+        }
+
+        function showLogin() {
+            const name = prompt('أدخل اسمك:');
+            if (!name) return;
+
+            const pin = prompt('أدخل رمز سري (4 أرقام):');
+            if (!pin) return;
+
+            login(name, pin);
+        }
+
+        async function login(name, pin) {
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, pin })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    webUserUid = data.uid;
+                    webUserName = name;
+                    localStorage.setItem('user_id', webUserUid);
+                    localStorage.setItem('user_name', name);
+                    await init();
+                    alert('✅ تم تسجيل الدخول بنجاح');
+                } else {
+                    alert('❌ ' + (data.error || 'فشل تسجيل الدخول'));
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال');
+            }
+        }
+
+        async function reserveHizb(hizb) {
+            if (!webUserUid) {
+                showLogin();
+                return;
+            }
+
+            if (!confirm(`هل تريد حجز الحزب ${hizb}؟`)) return;
+
+            try {
+                const response = await fetch('/api/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: webUserName,
+                        pin: '',
+                        hizb: hizb,
+                        khatma_id: khatmaId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    await init();
+                    alert('✅ تم حجز الحزب بنجاح');
+                } else {
+                    alert('❌ ' + (data.error || 'فشل'));
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال');
+            }
+        }
+
+        async function markDone(hizb) {
+            if (!confirm(`هل أتممت قراءة الحزب ${hizb}؟`)) return;
+
+            try {
+                const response = await fetch('/api/done', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        uid: webUserUid,
+                        hizb: hizb,
+                        khatma_id: khatmaId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.completed) {
+                        alert('🎉 تم إكمال الختمة بفضل الله! 🎉\\nاللهم تقبل منا وثبتنا على ذكرك');
+                    } else {
+                        alert('✅ تقبل الله منك');
+                    }
+                    await init();
+                } else {
+                    alert('❌ ' + (data.error || 'فشل'));
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال');
+            }
+        }
+
+        function copyLink() {
+            const link = document.getElementById('share-link').textContent.trim();
+            navigator.clipboard.writeText(link).then(() => {
+                alert('✅ تم نسخ الرابط!');
+            });
+        }
+
+        // Initialize on page load
+        init();
+    </script>
+</body>
+
+</html>
