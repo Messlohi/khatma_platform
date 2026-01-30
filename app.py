@@ -374,9 +374,10 @@ class DatabaseManager:
                 exists = conn.execute("SELECT 1 FROM khatmas WHERE id = ?", (kid,)).fetchone()
                 if not exists: return kid
     
-    def create_khatma(self, name, admin_name, admin_pin, intention=""):
+    def create_khatma(self, name, admin_name, admin_pin, intention="", deadline=None):
         khatma_id = self.generate_khatma_id()
-        default_deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+        if not deadline:
+            deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
         
         with self.get_connection() as conn:
             # Create admin user
@@ -387,7 +388,7 @@ class DatabaseManager:
             # Create khatma
             conn.execute("""INSERT INTO khatmas (id, name, admin_uid, intention, deadline, total_khatmas) 
                            VALUES (?, ?, ?, ?, ?, 0)""",
-                        (khatma_id, name, admin_uid, intention, default_deadline))
+                        (khatma_id, name, admin_uid, intention, deadline))
             
             conn.commit()
             self.bump()

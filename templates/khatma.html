@@ -48,17 +48,60 @@
         header {
             text-align: center;
             padding: 50px 0;
+            position: relative;
             background: linear-gradient(135deg, var(--primary), #064e3b);
+            color: var(--white);
             color: var(--white);
             border-radius: 0 0 40px 40px;
             margin-bottom: 30px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .lang-switcher {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            /* LTR default, will swap in RTL */
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        body[dir="rtl"] .lang-switcher {
+            left: 20px;
+            right: auto;
+        }
+
+        body[dir="ltr"] .lang-switcher {
+            right: 20px;
+            left: auto;
+        }
+
+        .lang-switcher a {
+            color: white;
+            text-decoration: none;
+            margin: 0 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .lang-switcher a:hover {
+            opacity: 1;
         }
 
         h1 {
             font-size: 2.5rem;
             margin-bottom: 15px;
             color: var(--border-gold);
+        }
+
+        .header-content {
+            /* Wrapper for content to stay centered */
         }
 
         .duaa {
@@ -671,17 +714,24 @@
     </div>
 
     <header>
+        <div class="lang-switcher">
+            <a href="javascript:toggleLang('ar')">العربية</a>
+            <span style="color: rgba(255,255,255,0.4)">|</span>
+            <a href="javascript:toggleLang('en')">En</a>
+            <span style="color: rgba(255,255,255,0.4)">|</span>
+            <a href="javascript:toggleLang('fr')">Fr</a>
+        </div>
         <div class="container">
             <h1 data-t="header_title">ختمات القرآن الكريم</h1>
             <p class="duaa" data-t="header_sub">اللهم اجعلها ختمة مباركة في ميزان حسناتنا</p>
 
             <!-- Admin Badge & Control Panel Button -->
             <div id="admin-badge" style="display: none; margin-top: 15px;">
-                <span
+                <span data-t="admin_badge"
                     style="background: linear-gradient(135deg, var(--primary), #064e3b); color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(6, 95, 70, 0.3);">
                     👑 وضع المدير
                 </span>
-                <button id="open-admin-btn" onclick="openAdmin()"
+                <button id="open-admin-btn" onclick="openAdmin()" data-t="open_admin_panel"
                     style="margin-right: 10px; background: white; color: var(--primary); padding: 8px 16px; border: 2px solid var(--primary); border-radius: 20px; font-weight: bold; cursor: pointer; transition: all 0.3s;">
                     ⚙️ لوحة التحكم
                 </button>
@@ -785,7 +835,8 @@
         </div>
 
         <div id="admin-panel" class="admin-panel">
-            <h3 style="margin-bottom: 15px; color: var(--secondary);">👑 لوحة التحكم (السوبر يوزر)</h3>
+            <h3 style="margin-bottom: 15px; color: var(--secondary);" data-t="admin_panel_title">👑 لوحة التحكم (السوبر
+                يوزر)</h3>
 
             <!-- User Search Filter -->
             <div style="margin-bottom: 15px;">
@@ -798,41 +849,46 @@
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th>الاسم</th>
-                            <th>نشط</th>
-                            <th>منتهي</th>
-                            <th>الإجراءات</th>
+                            <th data-t="admin_col_name">الاسم</th>
+                            <th data-t="admin_col_active">نشط</th>
+                            <th data-t="admin_col_completed">منتهي</th>
+                            <th data-t="admin_col_actions">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="admin-user-list"></tbody>
                 </table>
             </div>
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-                <h4>⚙️ إعدادات عامة</h4>
+                <h4 data-t="settings_title">⚙️ إعدادات عامة</h4>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="date" id="admin-deadline"
                         style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                    <button class="btn btn-primary" style="padding: 10px;" onclick="adminSetDeadline()">تحديث
+                    <button class="btn btn-primary" style="padding: 10px;" onclick="adminSetDeadline()"
+                        data-t="update_deadline">تحديث
                         الموعد</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                    <label style="font-weight: 600; min-width: 150px;">عدد الختمات المكتملة:</label>
+                    <label style="font-weight: 600; min-width: 150px;" data-t="completed_khatmas">عدد الختمات
+                        المكتملة:</label>
                     <input type="number" id="admin-total-khatmas" min="0" step="1" inputmode="numeric"
                         style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                    <button class="btn btn-primary" style="padding: 10px;"
-                        onclick="adminUpdateTotalKhatmas()">تحديث</button>
+                    <button class="btn btn-primary" style="padding: 10px;" onclick="adminUpdateTotalKhatmas()"
+                        data-t="update_btn">تحديث</button>
                 </div>
                 <div style="margin-top: 15px;">
-                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">نية الختمة (الدعاء):</label>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;"
+                        data-t="khatma_intention_label">نية الختمة (الدعاء):</label>
                     <textarea id="admin-intention" rows="4"
                         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button class="btn btn-primary" onclick="adminUpdateIntention()">تحديث النية</button>
+                        <button class="btn btn-primary" onclick="adminUpdateIntention()" data-t="update_intention">تحديث
+                            النية</button>
                         <button class="btn btn-outline" onclick="resetIntentionToDefault()">إعادة الافتراضي</button>
                     </div>
                 </div>
             </div>
-            <button class="btn btn-outline" style="margin-top: 20px;" onclick="closeAdmin()">إغلاق اللوحة</button>
+            <button class="btn btn-outline" style="margin-top: 20px;" onclick="closeAdmin()" data-t="close_admin">❌
+                إغلاق</button>
         </div>
     </div>
 
@@ -883,12 +939,6 @@
 
     <footer>
         <p data-t="footer">تقبل الله طاعتكم 2026</p>
-        <div style="margin-top: 10px; font-size: 0.85rem;">
-            <a href="javascript:toggleLang('ar')" style="margin:0 5px; text-decoration:none;">العربية</a> |
-            <a href="javascript:toggleLang('fr')" style="margin:0 5px; text-decoration:none;">Français</a>
-            |
-            <a href="javascript:toggleLang('en')" style="margin:0 5px; text-decoration:none;">English</a>
-        </div>
     </footer>
 
     <div id="dua-modal" class="modal">
@@ -919,7 +969,7 @@
             <div id="alert-icon" style="font-size: 3rem; margin-bottom: 15px;">ℹ️</div>
             <h3 id="alert-title" style="margin-bottom: 15px;"></h3>
             <p id="alert-message" style="margin-bottom: 25px; color: #6b7280;"></p>
-            <button class="btn btn-primary" id="alert-ok-btn" style="width: 100%;">حسناً</button>
+            <button class="btn btn-primary" id="alert-ok-btn" style="width: 100%;" data-t="ok">حسناً</button>
         </div>
     </div>
 
@@ -930,8 +980,10 @@
             <h3 id="confirm-title" style="margin-bottom: 15px;"></h3>
             <p id="confirm-message" style="margin-bottom: 25px; color: #6b7280;"></p>
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" id="confirm-yes-btn" style="flex: 1;">تأكيد</button>
-                <button class="btn btn-outline" id="confirm-no-btn" style="flex: 1;">إلغاء</button>
+                <button class="btn btn-primary" id="confirm-yes-btn" style="flex: 1;"
+                    data-t="confirm_yes">تأكيد</button>
+                <button class="btn btn-outline" id="confirm-no-btn" style="flex: 1;"
+                    data-t="confirm_cancel">إلغاء</button>
             </div>
         </div>
     </div>
@@ -1050,10 +1102,63 @@
                     edit_name: "تعديل",
                     edit_name_title: "تعديل الاسم",
                     new_name_placeholder: "الاسم الجديد",
-                    save_name: "حفظ"
+                    save_name: "حفظ",
+                    // Admin Panel Translations
+                    admin_badge: "👑 وضع المدير",
+                    open_admin_panel: "⚙️ لوحة التحكم",
+                    admin_panel_title: "👑 لوحة التحكم (السوبر يوزر)",
+                    search_user_placeholder: "🔍 بحث عن مستخدم...",
+                    admin_col_name: "الاسم",
+                    admin_col_active: "نشط",
+                    admin_col_completed: "منتهي",
+                    admin_col_actions: "الإجراءات",
+                    settings_title: "⚙️ إعدادات عامة",
+                    admin_deadline_label: "تاريخ انتهاء الختمة",
+                    update_deadline: "تحديث الموعد",
+                    completed_khatmas: "عدد الختمات المكتملة:",
+                    update_btn: "تحديث",
+                    khatma_intention_label: "نية الختمة (الدعاء):",
+                    update_intention: "تحديث النية",
+                    close_admin: "❌ إغلاق",
+                    action_edit_name: "✏️ تعديل الاسم",
+                    action_complete: "✅ إتمام",
+                    action_unassign: "⚠️ إرجاع",
+                    action_complete: "✅ إتمام",
+                    action_unassign: "⚠️ إرجاع",
+                    action_reset_pin: "🔑 تصفير الرمز",
+                    // Alerts & Confirms
+                    alert_reserved: "محجوز",
+                    confirm_generic: "هل أنت متأكد؟",
+                    error_generic: "حدث خطأ",
+                    error_user_no_active_hizbs: "هذا المستخدم ليس لديه أحزاب نشطة",
+                    prompt_choose_hizb: "اختر الحزب للقيام بالإجراء ({action}) للمستخدم {name}:\nالأحزاب: {hizbs}",
+                    alert_invalid_number: "الرقم غير صحيح",
+                    alert_khatma_completed: "مبارك! اكتملت الختمة بفضل الله 🎊",
+                    alert_select_date: "الرجاء اختيار تاريخ",
+                    confirm_change_date: "هل تريد تغيير الموعد إلى {date}؟",
+                    alert_update_failed: "فشل التحديث",
+                    alert_connection_error: "خطأ في الاتصال",
+                    alert_enter_valid_number: "الرجاء إدخال رقم صحيح",
+                    confirm_change_total: "هل تريد تغيير عدد الختمات المكتملة إلى {count}؟",
+                    alert_update_success: "تم التحديث بنجاح ✅",
+                    alert_enter_intention: "الرجاء كتابة نية الختمة",
+                    confirm_update_intention: "هل تريد تحديث نية الختمة؟",
+                    confirm_reset_intention: "هل تريد إعادة النية إلى النص الافتراضي؟ سيتم استبدال النص الحالي.",
+                    confirm_complete_all: "هل أنت متأكد من إتمام جميع أحزابك المحجوزة؟",
+                    confirm_unassign_hizb: "هل تريد إرجاع حجز الحزب؟",
+                    confirm_logout: "هل تريد الخروج وتبديل المستخدم؟",
+                    alert_enter_name: "أدخل اسمك",
+                    khatma_progress: "تقدم الختمة الحالية",
+                    khatma_completed_title: "🎉 تمت الختمة بفضل الله",
+                    khatma_completed_title: "🎉 تمت الختمة بفضل الله",
+                    confirm_book_hizb: "هل تريد حجز الحزب {hizb} باسمك ({name})؟",
+                    confirm_yes: "تأكيد",
+                    confirm_cancel: "إلغاء",
+                    ok: "حسناً",
+                    hizb_label: "حزب"
                 },
                 en: {
-                    title: "Khatma - Alami Family",
+                    title: "Quran Khatma",
                     login: "👤 Login / Sign Up",
                     remaining: "Time Remaining for Khatma",
                     days: "Days", hours: "Hrs", minutes: "Min", seconds: "Sec",
@@ -1075,12 +1180,12 @@
                     nav_duaa: "Duaa",
                     add_dua_title: "Add Intention or Duaa",
                     confirm: "Confirm ✅",
-                    header_title: "Alami Family Khatmas",
-                    header_sub: "May Allah make it a blessed Khatma for our parents<br><b>Mom (Fattoum Alami)</b> and <b>Dad (Driss Alami)</b><br>May Allah forgive them and light their graves.",
+                    header_title: "Quran Khatma",
+                    header_sub: "May Allah make this a blessed Khatma for all of us",
                     name_placeholder: "Full Name",
                     pin_placeholder: "Secret Pin (Optional) - 4 digits",
                     pin_note: "* Add a pin if you want to ensure no one else edits your hizbs.",
-                    footer: "May Allah accept your good deeds • Alami Family 2026",
+                    footer: "May Allah accept your good deeds 2026",
                     dua_placeholder: "Write your duaa here...",
                     join_hizb: "Join Hizb",
                     confirm_hizb: "Confirm Reservation ✅",
@@ -1100,10 +1205,61 @@
                     edit_name_title: "Edit Name",
                     new_name_placeholder: "New Name",
                     save_name: "Save",
-                    understand: "Understand, don't show again"
+                    understand: "Understand, don't show again",
+                    // Admin Panel Translations
+                    admin_badge: "👑 Admin Mode",
+                    open_admin_panel: "⚙️ Control Panel",
+                    admin_panel_title: "👑 Control Panel (Super User)",
+                    search_user_placeholder: "🔍 Search for user...",
+                    admin_col_name: "Name",
+                    admin_col_active: "Active",
+                    admin_col_completed: "Completed",
+                    admin_col_actions: "Actions",
+                    settings_title: "⚙️ General Settings",
+                    admin_deadline_label: "Khatma Deadline",
+                    update_deadline: "Update Deadline",
+                    completed_khatmas: "Completed Khatmas:",
+                    update_btn: "Update",
+                    khatma_intention_label: "Khatma Intention (Duaa):",
+                    update_intention: "Update Intention",
+                    close_admin: "❌ Close",
+                    action_edit_name: "✏️ Edit Name",
+                    action_complete: "✅ Mark Complete",
+                    action_unassign: "⚠️ Unassign",
+                    action_reset_pin: "🔑 Reset PIN",
+                    // Alerts & Confirms
+                    alert_reserved: "Reserved",
+                    confirm_generic: "Are you sure?",
+                    error_generic: "Error occurred",
+                    error_user_no_active_hizbs: "User has no active hizbs",
+                    prompt_choose_hizb: "Choose Hizb for action ({action}) for user {name}:\nHizbs: {hizbs}",
+                    alert_invalid_number: "Invalid number",
+                    alert_khatma_completed: "Congratulations! Khatma Completed 🎊",
+                    alert_select_date: "Please select a date",
+                    confirm_change_date: "Change deadline to {date}?",
+                    alert_update_failed: "Update failed",
+                    alert_connection_error: "Connection error",
+                    alert_enter_valid_number: "Please enter a valid number",
+                    confirm_change_total: "Change completed khatmas count to {count}?",
+                    alert_update_success: "Updated successfully ✅",
+                    alert_enter_intention: "Please enter intention",
+                    confirm_update_intention: "Update Khatma intention?",
+                    confirm_reset_intention: "Reset intention to default text? This will replace current text.",
+                    confirm_complete_all: "Are you sure you want to mark all your booked hizbs as complete?",
+                    confirm_unassign_hizb: "Do you want to unassign/return this Hizb?",
+                    confirm_logout: "Do you want to logout and switch user?",
+                    alert_enter_name: "Enter your name",
+                    khatma_progress: "Current Khatma Progress",
+                    khatma_completed_title: "🎉 Khatma Completed!",
+                    khatma_completed_title: "🎉 Khatma Completed!",
+                    confirm_book_hizb: "Do you want to book Hizb {hizb} in your name ({name})?",
+                    confirm_yes: "Confirm",
+                    confirm_cancel: "Cancel",
+                    ok: "OK",
+                    hizb_label: "Hizb"
                 },
                 fr: {
-                    title: "Khatma - Famille Alami",
+                    title: "Khatma du Coran",
                     login: "👤 Connexion / Inscription",
                     remaining: "Temps restant pour la Khatma",
                     days: "Jours", hours: "H", minutes: "Min", seconds: "Sec",
@@ -1125,12 +1281,12 @@
                     nav_duaa: "Duaa",
                     add_dua_title: "Ajouter une intention ou Duaa",
                     confirm: "Confirmer ✅",
-                    header_title: "Khatmal Famille Alami",
-                    header_sub: "Qu'Allah fasse de cette Khatma une bénédiction pour nos parents<br><b>Maman (Fattoum Alami)</b> et <b>Papa (Driss Alami)</b><br>Qu'Allah leur pardonne et illumine leurs tombes.",
+                    header_title: "Khatma du Coran",
+                    header_sub: "Qu'Allah fasse de cette Khatma une bénédiction pour nous tous",
                     name_placeholder: "Nom complet",
                     pin_placeholder: "Code secret (Optionnel) - 4 chiffres",
                     pin_note: "* Ajoutez un code si vous voulez sécuriser vos hizbs.",
-                    footer: "Qu'Allah accepte vos bonnes actions • Famille Alami 2026",
+                    footer: "Qu'Allah accepte vos bonnes actions 2026",
                     dua_placeholder: "Écrivez votre duaa ici...",
                     join_hizb: "Rejoindre Hizb",
                     confirm_hizb: "Confirmer la réservation ✅",
@@ -1150,7 +1306,58 @@
                     edit_name_title: "Modifier le nom",
                     new_name_placeholder: "Nouveau nom",
                     save_name: "Enregistrer",
-                    understand: "Compris, ne plus afficher"
+                    understand: "Compris, ne plus afficher",
+                    // Admin Panel Translations
+                    admin_badge: "👑 Mode Admin",
+                    open_admin_panel: "⚙️ Panneau de contrôle",
+                    admin_panel_title: "👑 Panneau de Contrôle",
+                    search_user_placeholder: "🔍 Chercher un utilisateur...",
+                    admin_col_name: "Nom",
+                    admin_col_active: "Actif",
+                    admin_col_completed: "Terminé",
+                    admin_col_actions: "Actions",
+                    settings_title: "⚙️ Paramètres Généraux",
+                    admin_deadline_label: "Date limite",
+                    update_deadline: "Mettre à jour",
+                    completed_khatmas: "Khatmas terminées:",
+                    update_btn: "Mettre à jour",
+                    khatma_intention_label: "Intention (Duaa):",
+                    update_intention: "Mettre à jour l'intention",
+                    close_admin: "❌ Fermer",
+                    action_edit_name: "✏️ Modifier Nom",
+                    action_complete: "✅ Marquer Terminé",
+                    action_unassign: "⚠️ Désassigner",
+                    action_reset_pin: "🔑 Réinitialiser PIN",
+                    // Alerts & Confirms
+                    alert_reserved: "Réservé",
+                    confirm_generic: "Êtes-vous sûr ?",
+                    error_generic: "Une erreur est survenue",
+                    error_user_no_active_hizbs: "L'utilisateur n'a pas de hizbs actifs",
+                    prompt_choose_hizb: "Choisissez le Hizb pour l'action ({action}) pour l'utilisateur {name} :\nHizbs : {hizbs}",
+                    alert_invalid_number: "Numéro invalide",
+                    alert_khatma_completed: "Félicitations ! Khatma terminée 🎊",
+                    alert_select_date: "Veuillez sélectionner une date",
+                    confirm_change_date: "Changer la date limite au {date} ?",
+                    alert_update_failed: "Mise à jour échouée",
+                    alert_connection_error: "Erreur de connexion",
+                    alert_enter_valid_number: "Veuillez entrer un nombre valide",
+                    confirm_change_total: "Changer le nombre total de khatmas à {count} ?",
+                    alert_update_success: "Mis à jour avec succès ✅",
+                    alert_enter_intention: "Veuillez entrer l'intention",
+                    confirm_update_intention: "Mettre à jour l'intention de la Khatma ?",
+                    confirm_reset_intention: "Réinitialiser l'intention au texte par défaut ? Cela remplacera le texte actuel.",
+                    confirm_complete_all: "Êtes-vous sûr de vouloir marquer tous vos hizbs réservés comme terminés ?",
+                    confirm_unassign_hizb: "Voulez-vous désassigner/rendre ce Hizb ?",
+                    confirm_logout: "Voulez-vous vous déconnecter et changer d'utilisateur ?",
+                    alert_enter_name: "Entrez votre nom",
+                    khatma_progress: "Progression de la Khatma",
+                    khatma_completed_title: "🎉 Khatma Terminée !",
+                    khatma_completed_title: "🎉 Khatma Terminée !",
+                    confirm_book_hizb: "Voulez-vous réserver le Hizb {hizb} à votre nom ({name}) ?",
+                    confirm_yes: "Confirmer",
+                    confirm_cancel: "Annuler",
+                    ok: "OK",
+                    hizb_label: "Hizb"
                 }
             };
 
@@ -1160,6 +1367,13 @@
 
             function toggleLang(val) {
                 currentLang = val || (currentLang === 'ar' ? 'fr' : (currentLang === 'fr' ? 'en' : 'ar'));
+
+                // Set direction based on language
+                if (currentLang === 'ar') {
+                    document.documentElement.setAttribute('dir', 'rtl');
+                } else {
+                    document.documentElement.setAttribute('dir', 'ltr');
+                }
 
                 localStorage.setItem('khatma_lang', currentLang);
                 updateUI();
@@ -1195,6 +1409,19 @@
                 if (statComp) statComp.innerText = t.done;
                 if (statAct) statAct.innerText = t.active;
                 if (statRem) statRem.innerText = t.left;
+
+                // Update Khatma Status Title
+                const kTitle = document.getElementById('khatma-title');
+                if (kTitle) {
+                    const isCompleted = window.hizbData && (window.hizbData.completed_count || 0) >= 60;
+                    kTitle.innerText = isCompleted ? t.khatma_completed_title : t.khatma_progress;
+                }
+                if (statRem) statRem.innerText = t.left;
+
+                // Refresh views to update translations inside generated content
+                if (document.getElementById('hizb-list').style.display === 'block') {
+                    renderList();
+                }
             }
 
             function scrollToSec(id) {
@@ -1269,7 +1496,9 @@
                         statusText = currentLang === 'ar' ? 'متاح' : (currentLang === 'fr' ? 'Disponible' : 'Available');
                     }
 
-                    const hizbLabel = currentLang === 'ar' ? 'حزب' : (currentLang === 'fr' ? 'Hizb' : 'Hizb');
+
+
+                    const hizbLabel = i18n[currentLang].hizb_label;
                     const takenByLabel = (!isAvailable && !isActive)
                         ? (currentLang === 'ar' ? 'تم بواسطة:' : (currentLang === 'fr' ? 'Complété par:' : 'Completed by:'))
                         : (currentLang === 'ar' ? 'محجوز:' : (currentLang === 'fr' ? 'Pris par:' : 'Taken by:'));
@@ -1302,7 +1531,7 @@
                         item.onclick = () => openActionModal(i);
                     } else if (isActive) {
                         item.style.cursor = 'not-allowed';
-                        item.onclick = () => alert(currentLang === 'ar' ? 'محجوز' : (currentLang === 'fr' ? 'Réservé' : 'Reserved'));
+                        item.onclick = () => alert(i18n[currentLang].alert_reserved);
                     } else {
                         item.style.cursor = 'pointer';
                         item.onclick = () => handleHizbClick(i);
@@ -1396,7 +1625,7 @@
                     document.getElementById('stat-active').innerText = act;
                     document.getElementById('stat-remaining').innerText = rem;
                     document.getElementById('progress-bar').style.width = ((comp / 60) * 100) + '%';
-                    document.getElementById('khatma-title').innerText = comp >= 60 ? "🎉 تمت الختمة بفضل الله" : "تقدم الختمة الحالية";
+                    document.getElementById('khatma-title').innerText = comp >= 60 ? i18n[currentLang].khatma_completed_title : i18n[currentLang].khatma_progress;
 
                     // Update identity buttons
                     const switchBtn = document.getElementById('switch-btn');
@@ -1479,7 +1708,7 @@
                         btn.onclick = () => openActionModal(i);
                     } else if (isActive) {
                         btn.classList.add('taken');
-                        btn.onclick = () => alert('محجوز');
+                        btn.onclick = () => alert(i18n[currentLang].alert_reserved);
                     } else {
                         btn.onclick = () => handleHizbClick(i);
                     }
@@ -1644,7 +1873,7 @@
             async function handleHizbClick(h) {
                 currentHizb = h;
                 if (webUserUid) {
-                    const confirmed = await customConfirm(`هل تريد حجز الحزب ${h} باسمك (${webUserName})؟`);
+                    const confirmed = await customConfirm(i18n[currentLang].confirm_book_hizb.replace('{hizb}', h).replace('{name}', webUserName));
                     if (confirmed) {
                         await quickJoin(h);
                     }
@@ -1670,7 +1899,7 @@
             }
             function openActionModal(h) {
                 currentHizb = h;
-                document.getElementById('action-title').innerText = `إدارة الحزب ${h}`;
+                document.getElementById('action-title').innerText = `${i18n[currentLang].manage_hizb} ${h}`;
 
                 // Show "Done All" only if user has multiple hizbs
                 const doneAllBtn = document.getElementById('done-all-btn');
@@ -1809,6 +2038,7 @@
                 const data = await res.json();
                 const list = document.getElementById('admin-user-list');
                 list.innerHTML = '';
+                const t = i18n[currentLang];
                 data.users.forEach(u => {
                     const tr = document.createElement('tr');
                     const menuId = `menu-${u.id}`;
@@ -1819,10 +2049,10 @@
                         <td class="admin-action-cell">
                             <button class="action-menu-btn" onclick="toggleActionMenu('${menuId}', event)">⋯</button>
                             <div class="action-menu" id="${menuId}">
-                                <button class="action-menu-item" onclick="adminEditUserName('${u.id}', '${u.name}'); closeAllMenus()">✏️ تعديل الاسم</button>
-                                <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'complete'); closeAllMenus()">✅ إتمام</button>
-                                <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'unassign'); closeAllMenus()">⚠️ إرجاع</button>
-                                <button class="action-menu-item" onclick="adminAction('${u.id}', 'reset_pin'); closeAllMenus()">🔑 تصفير الرمز</button>
+                                <button class="action-menu-item" onclick="adminEditUserName('${u.id}', '${u.name}'); closeAllMenus()">${t.action_edit_name}</button>
+                                <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'complete'); closeAllMenus()">${t.action_complete}</button>
+                                <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'unassign'); closeAllMenus()">${t.action_unassign}</button>
+                                <button class="action-menu-item" onclick="adminAction('${u.id}', 'reset_pin'); closeAllMenus()">${t.action_reset_pin}</button>
                             </div>
                         </td>
                     `;
@@ -1890,18 +2120,24 @@
             async function adminManageUser(uid, name, action) {
                 const res = await fetch(`/api/admin/user_hizbs?uid=${uid}`);
                 const data = await res.json();
-                if (!data.hizbs || data.hizbs.length === 0) return alert('هذا المستخدم ليس لديه أحزاب نشطة');
+                const t = i18n[currentLang];
+                if (!data.hizbs || data.hizbs.length === 0) return alert(t.error_user_no_active_hizbs);
 
-                const hizb = prompt(`اختر الحزب للقيام بالإجراء (${action}) للمستخدم ${name}:\nالأحزاب: ${data.hizbs.join(', ')}`);
+                const msg = t.prompt_choose_hizb
+                    .replace('{action}', action)
+                    .replace('{name}', name)
+                    .replace('{hizbs}', data.hizbs.join(', '));
+
+                const hizb = prompt(msg);
                 if (hizb && data.hizbs.includes(parseInt(hizb))) {
                     await adminAction(uid, action, parseInt(hizb));
                 } else if (hizb) {
-                    alert('الرقم غير صحيح');
+                    alert(i18n[currentLang].alert_invalid_number);
                 }
             }
 
             async function adminAction(uid, action, hizb = null) {
-                const confirmed = await customConfirm('هل أنت متأكد؟');
+                const confirmed = await customConfirm(i18n[currentLang].confirm_generic);
                 if (!confirmed) return;
                 showLoading(true);
                 const res = await fetch('/api/admin/control', {
@@ -1919,8 +2155,8 @@
 
             async function adminSetDeadline() {
                 const d = document.getElementById('admin-deadline').value;
-                if (!d) return alert('الرجاء اختيار تاريخ');
-                const confirmed = await customConfirm(`هل تريد تغيير الموعد إلى ${d}؟`);
+                if (!d) return alert(i18n[currentLang].alert_select_date);
+                const confirmed = await customConfirm(i18n[currentLang].confirm_change_date.replace('{date}', d));
                 if (!confirmed) return;
                 showLoading(true);
                 try {
@@ -1943,8 +2179,8 @@
 
             async function adminUpdateTotalKhatmas() {
                 const newTotal = parseInt(document.getElementById('admin-total-khatmas').value);
-                if (isNaN(newTotal) || newTotal < 0) return alert('الرجاء إدخال رقم صحيح');
-                const confirmed = await customConfirm(`هل تريد تغيير عدد الختمات المكتملة إلى ${newTotal}؟`);
+                if (isNaN(newTotal) || newTotal < 0) return alert(i18n[currentLang].alert_enter_valid_number);
+                const confirmed = await customConfirm(i18n[currentLang].confirm_change_total.replace('{count}', newTotal));
                 if (!confirmed) return;
                 showLoading(true);
                 try {
@@ -1956,7 +2192,7 @@
                     const data = await res.json();
                     if (data.success) {
                         await init();
-                        alert('تم تحديث عدد الختمات بنجاح ✅');
+                        alert(i18n[currentLang].alert_update_success);
                     } else {
                         alert(data.error || 'فشل تحديث العدد');
                     }
@@ -1969,8 +2205,8 @@
 
             async function adminUpdateIntention() {
                 const newIntention = document.getElementById('admin-intention').value.trim();
-                if (!newIntention) return alert('الرجاء كتابة نية الختمة');
-                const confirmed = await customConfirm('هل تريد تحديث نية الختمة؟');
+                if (!newIntention) return alert(i18n[currentLang].alert_enter_intention);
+                const confirmed = await customConfirm(i18n[currentLang].confirm_update_intention);
                 if (!confirmed) return;
                 showLoading(true);
                 try {
@@ -1984,7 +2220,7 @@
                         // Update the header duaa text
                         document.querySelector('.duaa[data-t="header_sub"]').innerHTML = newIntention.replace(/\n/g, '<br>');
                         await init();
-                        alert('تم تحديث النية بنجاح ✅');
+                        alert(i18n[currentLang].alert_update_success);
                     } else {
                         alert(data.error || 'فشل تحديث النية');
                     }
@@ -1995,10 +2231,10 @@
                 }
             }
 
-            const DEFAULT_INTENTION = 'اللهم اجعلها ختمة مباركة في ميزان حسنات والدينا<br><b>يمه (فطوم العلمي)</b> و <b>با (إدريس العلمي)</b><br>اللهم اغفر لهما وارحمهما ونور قبرهما.';
+            const DEFAULT_INTENTION = "اللهم اجعلها ختمة مباركة في ميزان حسناتنا جميعاً.\nاللهم تقبل منا صالح الأعمال واغفر لنا وارحمنا.";
 
             async function resetIntentionToDefault() {
-                const confirmed = await customConfirm('هل تريد إعادة النية إلى النص الافتراضي؟ سيتم استبدال النص الحالي.');
+                const confirmed = await customConfirm(i18n[currentLang].confirm_reset_intention);
                 if (!confirmed) return;
                 const plainDefault = DEFAULT_INTENTION.replace(/<br>/g, '\n').replace(/<\/?b>/g, '');
                 document.getElementById('admin-intention').value = plainDefault;
@@ -2011,38 +2247,38 @@
                     const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) {
-                        if (data.completed) alert('مبارك! تم كمال الختمة بفضل الله 🎊');
+                        if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
                         closeModal(); await init();
                     }
-                    else { alert(data.error || 'خطأ'); showLoading(false); }
-                } catch (e) { alert('خطأ في الاتصال'); showLoading(false); }
+                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
+                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
             }
 
             async function markAllDone() {
-                const confirmed = await customConfirm('هل أنت متأكد من إتمام جميع أحزابك المحجوزة؟');
+                const confirmed = await customConfirm(i18n[currentLang].confirm_complete_all);
                 if (!confirmed) return;
                 showLoading(true);
                 try {
                     const res = await fetch('/api/done_all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid }) });
                     const data = await res.json();
                     if (data.success) {
-                        if (data.completed) alert('مبارك! تم كمال الختمة بفضل الله 🎊');
+                        if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
                         closeModal(); await init();
                     }
-                    else { alert(data.error || 'خطأ'); showLoading(false); }
-                } catch (e) { alert('خطأ في الاتصال'); showLoading(false); }
+                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
+                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
             }
 
             async function returnHizb() {
-                const confirmed = await customConfirm('هل تريد إرجاع حجز الحزب؟');
+                const confirmed = await customConfirm(i18n[currentLang].confirm_unassign_hizb);
                 if (!confirmed) return;
                 showLoading(true);
                 try {
                     const res = await fetch('/api/return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) { closeModal(); await init(); }
-                    else { alert(data.error || 'خطأ'); showLoading(false); }
-                } catch (e) { alert('خطأ في الاتصال'); showLoading(false); }
+                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
+                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
             }
 
             async function checkUpdates() {
@@ -2056,7 +2292,7 @@
             }
 
             async function logout() {
-                const confirmed = await customConfirm('هل تريد الخروج وتبديل المستخدم؟');
+                const confirmed = await customConfirm(i18n[currentLang].confirm_logout);
                 if (confirmed) {
                     localStorage.clear();
                     window.location.reload();

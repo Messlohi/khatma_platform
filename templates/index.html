@@ -281,8 +281,8 @@
     <div class="islamic-pattern"></div>
 
     <header>
-        <h1>🕌 نظام الختمات الجماعية</h1>
-        <p class="subtitle">نظم ختمة قرآن كريم لعائلتك أو مجموعتك بسهولة</p>
+        <h1 data-t="header_title">🕌 نظام الختمات الجماعية</h1>
+        <p class="subtitle" data-t="header_subtitle">نظم ختمة قرآن كريم لعائلتك أو مجموعتك بسهولة</p>
     </header>
 
     <div class="container">
@@ -321,8 +321,9 @@
 
                 <button class="btn btn-primary" onclick="showCreateForm()" data-t="create_btn">إنشاء ختمة جديدة
                     ✨</button>
-                <button class="btn btn-secondary" onclick="showAdminLogin()" style="width: 100%; margin-top: 15px;">🔑
-                    دخول لوحة التحكم (Admin)</button>
+                <button class="btn btn-secondary" onclick="showAdminLogin()" style="width: 100%; margin-top: 15px;"
+                    data-t="admin_login_title">🔑
+                    دخول لوحة التحكم</button>
             </div>
 
             <!-- Create Form -->
@@ -394,37 +395,40 @@
 
             <!-- Admin Login Form -->
             <div id="admin-login" class="hidden">
-                <button class="back-btn" onclick="showWelcome()">← <span>رجوع</span></button>
+                <button class="back-btn" onclick="showWelcome()">← <span data-t="back">رجوع</span></button>
 
-                <h2 style="margin-bottom: 10px; color: var(--primary);">🔑 دخول لوحة التحكم</h2>
-                <p style="margin-bottom: 30px; color: #6b7280;">أدخل بيانات الأدمن للوصول إلى لوحة التحكم</p>
+                <h2 style="margin-bottom: 10px; color: var(--primary);" data-t="admin_login_title">🔑 دخول لوحة التحكم
+                </h2>
+                <p style="margin-bottom: 30px; color: #6b7280;" data-t="admin_login_subtitle">أدخل بيانات الأدمن للوصول
+                    إلى لوحة التحكم</p>
 
                 <form onsubmit="adminLogin(event)">
                     <div class="form-group">
-                        <label>👤 اسم الأدمن</label>
-                        <input type="text" id="admin-login-name" placeholder="اسم المنظم" required>
+                        <label data-t="admin_login_name_label">👤 اسم الأدمن</label>
+                        <input type="text" id="admin-login-name" required>
                     </div>
 
                     <div class="form-group">
-                        <label>🔒 الرمز السري</label>
+                        <label data-t="admin_login_pin_label">🔒 الرمز السري</label>
                         <input type="password" id="admin-login-pin" placeholder="••••" required>
                     </div>
 
                     <div class="form-group">
-                        <label>🔗 معرف الختمة (Khatma ID)</label>
-                        <input type="text" id="admin-khatma-id" placeholder="مثال: abc123" required>
-                        <small style="color: #6b7280; font-size: 0.9rem;">* معرف الختمة موجود في الرابط:
+                        <label data-t="admin_login_id_label">🔗 معرف الختمة (Khatma ID)</label>
+                        <input type="text" id="admin-khatma-id" placeholder="abc123" required>
+                        <small style="color: #6b7280; font-size: 0.9rem;" data-t="admin_login_id_hint">* معرف الختمة
+                            موجود في الرابط:
                             /khatma/<strong>abc123</strong></small>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">دخول لوحة التحكم →</button>
+                    <button type="submit" class="btn btn-primary" data-t="admin_login_btn">دخول لوحة التحكم →</button>
                 </form>
             </div>
         </div>
     </div>
 
     <footer>
-        <p>🕌 تقبل الله طاعتكم • نظام الختمات الجماعية 2026</p>
+        <p data-t="footer_text">🕌 تقبل الله طاعتكم • نظام الختمات الجماعية 2026</p>
     </footer>
 
     <script>
@@ -451,7 +455,24 @@
                 success_title: "تم إنشاء الختمة بنجاح!",
                 share_label: "شارك هذا الرابط مع عائلتك:",
                 copy_link: "📋 نسخ الرابط",
-                goto_khatma: "الذهاب إلى الختمة →"
+                goto_khatma: "الذهاب إلى الختمة →",
+                // Header & Footer
+                header_title: "🕌 نظام الختمات الجماعية",
+                header_subtitle: "نظم ختمة قرآن كريم لعائلتك أو مجموعتك بسهولة",
+                footer_text: "🕌 تقبل الله طاعتكم • نظام الختمات الجماعية 2026",
+                // Admin Login
+                admin_login_title: "🔑 دخول لوحة التحكم",
+                admin_login_subtitle: "أدخل بيانات الأدمن للوصول إلى لوحة التحكم",
+                admin_login_name_label: "👤 اسم الأدمن",
+                admin_login_pin_label: "🔒 الرمز السري",
+                admin_login_id_label: "🔗 معرف الختمة (Khatma ID)",
+                admin_login_id_hint: "* معرف الختمة موجود في الرابط: /khatma/<strong>abc123</strong>",
+                admin_login_btn: "دخول لوحة التحكم →",
+                // Alerts & Errors
+                alert_success_copy: "✅ تم نسخ الرابط!",
+                alert_error_create: "فشل في إنشاء الختمة",
+                alert_error_login: "بيانات الأدمن غير صحيحة أو ليس لديك صلاحيات",
+                alert_error_connection: "خطأ في الاتصال: "
             },
             en: {
                 feature1: "Distribute 60 Hizbs among participants",
@@ -472,7 +493,24 @@
                 success_title: "Khatma Created Successfully!",
                 share_label: "Share this link with your family:",
                 copy_link: "📋 Copy Link",
-                goto_khatma: "Go to Khatma →"
+                goto_khatma: "Go to Khatma →",
+                // Header & Footer
+                header_title: "🕌 Family Khatma System",
+                header_subtitle: "Organize a Quran Khatma for your family or group easily",
+                footer_text: "🕌 May Allah accept your deeds • Family Khatma System 2026",
+                // Admin Login
+                admin_login_title: "🔑 Admin Login",
+                admin_login_subtitle: "Enter admin credentials to access control panel",
+                admin_login_name_label: "👤 Admin Name",
+                admin_login_pin_label: "🔒 Secret PIN",
+                admin_login_id_label: "🔗 Khatma ID",
+                admin_login_id_hint: "* Khatma ID is in the link: /khatma/<strong>abc123</strong>",
+                admin_login_btn: "Enter Control Panel →",
+                // Alerts & Errors
+                alert_success_copy: "✅ Link copied!",
+                alert_error_create: "Failed to create Khatma",
+                alert_error_login: "Invalid credentials or unauthorized",
+                alert_error_connection: "Connection error: "
             },
             fr: {
                 feature1: "Distribuer 60 Hizbs entre les participants",
@@ -493,7 +531,24 @@
                 success_title: "Khatma Créée avec Succès!",
                 share_label: "Partagez ce lien avec votre famille:",
                 copy_link: "📋 Copier le Lien",
-                goto_khatma: "Aller à la Khatma →"
+                goto_khatma: "Aller à la Khatma →",
+                // Header & Footer
+                header_title: "🕌 Système de Khatma Familiale",
+                header_subtitle: "Organisez facilement une Khatma Coranique",
+                footer_text: "🕌 Qu'Allah accepte vos actions • Système de Khatma 2026",
+                // Admin Login
+                admin_login_title: "🔑 Connexion Admin",
+                admin_login_subtitle: "Entrez vos identifiants pour accéder au panneau",
+                admin_login_name_label: "👤 Nom Admin",
+                admin_login_pin_label: "🔒 Code PIN",
+                admin_login_id_label: "🔗 ID Khatma",
+                admin_login_id_hint: "* L'ID est dans le lien : /khatma/<strong>abc123</strong>",
+                admin_login_btn: "Accéder au Panneau →",
+                // Alerts & Errors
+                alert_success_copy: "✅ Lien copié !",
+                alert_error_create: "Échec de création de la Khatma",
+                alert_error_login: "Identifiants invalides ou non autorisé",
+                alert_error_connection: "Erreur de connexion : "
             }
         };
 
@@ -511,11 +566,15 @@
                 if (translations[lang][key]) {
                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                         el.placeholder = translations[lang][key];
+                    } else if (key === 'admin_login_id_hint' || key === 'header_subtitle') {
+                        el.innerHTML = translations[lang][key]; // Handle HTML content
                     } else {
                         el.textContent = translations[lang][key];
                     }
                 }
             });
+            // Update document title
+            document.title = lang === 'ar' ? 'نظام الختمات الجماعية' : (lang === 'fr' ? 'Système de Khatma Familiale' : 'Family Khatma System');
         }
 
         function showWelcome() {
@@ -572,12 +631,12 @@
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('success-screen').classList.remove('hidden');
                 } else {
-                    alert('خطأ: ' + (data.error || 'فشل في إنشاء الختمة'));
+                    alert((translations[currentLang].alert_error_create || 'Error') + ': ' + (data.error || ''));
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('create-form').classList.remove('hidden');
                 }
             } catch (error) {
-                alert('خطأ في الاتصال: ' + error);
+                alert((translations[currentLang].alert_error_connection || 'Connection Error') + ': ' + error);
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('create-form').classList.remove('hidden');
             }
@@ -586,8 +645,7 @@
         function copyLink() {
             const link = document.getElementById('khatma-link').textContent;
             navigator.clipboard.writeText(link).then(() => {
-                const msg = currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!');
-                alert(msg);
+                alert(translations[currentLang].alert_success_copy || '✅ Link copied!');
             });
         }
 
@@ -636,12 +694,12 @@
                     // Redirect to Khatma control panel
                     window.location.href = `/khatma/${khatmaId}`;
                 } else {
-                    alert('خطأ: ' + (data.error || 'بيانات الأدمن غير صحيحة أو ليس لديك صلاحيات'));
+                    alert((translations[currentLang].alert_error_login || 'Invalid credentials') + ': ' + (data.error || ''));
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('admin-login').classList.remove('hidden');
                 }
             } catch (error) {
-                alert('خطأ في الاتصال: ' + error);
+                alert((translations[currentLang].alert_error_connection || 'Connection Error') + ': ' + error);
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('admin-login').classList.remove('hidden');
             }
