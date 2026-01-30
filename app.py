@@ -276,16 +276,27 @@ class DatabaseManager:
             # Convert to list
             return [{"name": k, "active": sorted(v["active"]), "completed": sorted(v["completed"])} for k, v in data.items()]
 
-    def get_all_users(self):
+    def get_all_users(self, khatma_id=None):
         with self.get_connection() as conn:
             # Get users with counts of active and completed hizbs
-            query = """
-                SELECT u.id, u.full_name, u.web_pin,
-                       (SELECT COUNT(*) FROM hizb_assignments ha WHERE ha.user_id = u.id) as active_count,
-                       (SELECT COUNT(*) FROM completed_hizb ch WHERE ch.user_id = u.id) as completed_count
-                FROM users u
-            """
-            rows = conn.execute(query).fetchall()
+            # IMPORTANT: Filter by khatma_id if provided
+            if khatma_id:
+                query = """
+                    SELECT u.id, u.full_name, u.web_pin,
+                           (SELECT COUNT(*) FROM hizb_assignments ha WHERE ha.user_id = u.id AND ha.khatma_id = ?) as active_count,
+                           (SELECT COUNT(*) FROM completed_hizb ch WHERE ch.user_id = u.id AND ch.khatma_id = ?) as completed_count
+                    FROM users u
+                    WHERE u.khatma_id = ?
+                """
+                rows = conn.execute(query, (khatma_id, khatma_id, khatma_id)).fetchall()
+            else:
+                query = """
+                    SELECT u.id, u.full_name, u.web_pin,
+                           (SELECT COUNT(*) FROM hizb_assignments ha WHERE ha.user_id = u.id) as active_count,
+                           (SELECT COUNT(*) FROM completed_hizb ch WHERE ch.user_id = u.id) as completed_count
+                    FROM users u
+                """
+                rows = conn.execute(query).fetchall()
             return [{"id": r[0], "name": r[1], "pin": r[2], "active": r[3], "completed": r[4]} for r in rows]
 
     def reset_user_pin(self, user_id):
@@ -538,12 +549,22 @@ def create_khatma_api():
     admin_name = data.get("admin_name")
     admin_pin = data.get("admin_pin")
     intention = data.get("intention", "")
+    deadline = data.get("deadline")  # NEW: Get deadline from payload
     
     if not name or not admin_name or not admin_pin:
         return jsonify({"error": "Missing required fields"}), 400
     
     try:
-        khatma_id, admin_uid = db.create_khatma(name, admin_name, admin_pin, intention)
+        # Format deadline to include time if only date is provided
+        if deadline:
+            deadline_formatted = f"{deadline} 23:59"
+        else:
+            # Default: 1 week from now
+            from datetime import datetime, timedelta
+            default_deadline = datetime.now() + timedelta(days=7)
+            deadline_formatted = default_deadline.strftime("%Y-%m-%d 23:59")
+        
+        khatma_id, admin_uid = db.create_khatma(name, admin_name, admin_pin, intention, deadline_formatted)
         return jsonify({"success": True, "khatma_id": khatma_id, "admin_uid": admin_uid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -561,7 +582,8 @@ def admin_login():
 
 @app.route("/api/admin/users")
 def admin_users():
-    return jsonify({"users": db.get_all_users()})
+    khatma_id = request.args.get("khatma_id")
+    return jsonify({"users": db.get_all_users(khatma_id)})
 
 @app.route("/api/admin/user_hizbs")
 def admin_user_hizbs():

@@ -352,6 +352,12 @@
                     </div>
 
                     <div class="form-group">
+                        <label>📅 موعد الإنتهاء (اختياري)</label>
+                        <input type="date" id="deadline" style="background: #fafafa;">
+                        <small style="color: #6b7280; font-size: 0.9rem;">* يمكنك تغييره لاحقاً من لوحة التحكم</small>
+                    </div>
+
+                    <div class="form-group">
                         <label data-t="intention">🤲 النية / الدعاء (اختياري)</label>
                         <textarea id="intention" rows="3"
                             placeholder="اللهم اجعلها ختمة مباركة في ميزان حسناتنا..."></textarea>
@@ -531,6 +537,7 @@
             const adminName = document.getElementById('admin-name').value;
             const adminPin = document.getElementById('admin-pin').value;
             const intention = document.getElementById('intention').value;
+            const deadline = document.getElementById('deadline').value;
 
             document.getElementById('create-form').classList.add('hidden');
             document.getElementById('loading').classList.remove('hidden');
@@ -543,7 +550,8 @@
                         name: khatmaName,
                         admin_name: adminName,
                         admin_pin: adminPin,
-                        intention: intention || ''
+                        intention: intention || '',
+                        deadline: deadline || null
                     })
                 });
 
