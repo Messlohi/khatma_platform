@@ -2083,8 +2083,9 @@
 
             async function openAdmin() {
                 showLoading(true);
-                // Secure Admin Endpoint: Pass uid for verification
-                const res = await fetch(`/api/admin/users?khatma_id=${khatmaId}&uid=${webUserUid}`);
+                // Secure Admin Endpoint: Pass uid and PIN for verification
+                const headers = { 'X-Admin-Pin': webUserPin || '' };
+                const res = await fetch(`/api/admin/users?khatma_id=${khatmaId}&uid=${webUserUid}`, { headers });
                 const data = await res.json();
                 const list = document.getElementById('admin-user-list');
                 list.innerHTML = '';
@@ -2168,7 +2169,8 @@
             }
 
             async function adminManageUser(uid, name, action) {
-                const res = await fetch(`/api/admin/user_hizbs?uid=${uid}&admin_uid=${webUserUid}&khatma_id=${khatmaId}`);
+                const headers = { 'X-Admin-Pin': webUserPin || '' };
+                const res = await fetch(`/api/admin/user_hizbs?uid=${uid}&admin_uid=${webUserUid}&khatma_id=${khatmaId}`, { headers });
                 const data = await res.json();
                 const t = i18n[currentLang];
                 if (!data.hizbs || data.hizbs.length === 0) return alert(t.error_user_no_active_hizbs);
@@ -2193,7 +2195,7 @@
                 const res = await fetch('/api/admin/control', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, uid, hizb, admin_uid: webUserUid, khatma_id: khatmaId })
+                    body: JSON.stringify({ action, uid, hizb, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -2213,7 +2215,7 @@
                     const res = await fetch('/api/admin/control', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'deadline', hizb: d, admin_uid: webUserUid, khatma_id: khatmaId })
+                        body: JSON.stringify({ action: 'deadline', hizb: d, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
                     });
                     if (res.ok) {
                         await init();
@@ -2237,7 +2239,7 @@
                     const res = await fetch('/api/admin/control', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'update_total', hizb: newTotal, admin_uid: webUserUid, khatma_id: khatmaId })
+                        body: JSON.stringify({ action: 'update_total', hizb: newTotal, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
                     });
                     const data = await res.json();
                     if (data.success) {
@@ -2263,7 +2265,7 @@
                     const res = await fetch('/api/admin/control', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'update_intention', hizb: newIntention, admin_uid: webUserUid, khatma_id: khatmaId })
+                        body: JSON.stringify({ action: 'update_intention', hizb: newIntention, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
                     });
                     const data = await res.json();
                     if (data.success) {

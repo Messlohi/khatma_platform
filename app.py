@@ -177,6 +177,16 @@ class DatabaseManager:
             row = conn.execute("SELECT admin_uid FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
             return row and row[0] is not None and int(row[0]) == int(uid)
 
+    def verify_admin_credentials(self, uid, khatma_id, pin):
+        """Strict check: UID must be Admin AND Pin must match"""
+        if not self.is_admin(uid, khatma_id):
+            return False
+        
+        with self.get_connection() as conn:
+            # Check user's PIN
+            row = conn.execute("SELECT web_pin FROM users WHERE id = ?", (uid,)).fetchone()
+            return row and str(row[0]) == str(pin)
+
     def assign_hizb(self, user_id, hizb_num, khatma_id=None):
         try:
             with self.get_connection() as conn:
@@ -923,8 +933,9 @@ def admin_login():
 def admin_users():
     uid = request.args.get("uid")
     khatma_id = request.args.get("khatma_id")
+    pin = request.headers.get("X-Admin-Pin")
     
-    if not db.is_admin(uid, khatma_id):
+    if not db.verify_admin_credentials(uid, khatma_id, pin):
         return jsonify({"error": "Unauthorized"}), 403
         
     return jsonify({"users": db.get_all_users(khatma_id)}) 
@@ -940,7 +951,14 @@ def admin_user_hizbs():
     # Let's require khatma_id param from client for security check.
     khatma_id = request.args.get("khatma_id")
     
-    if not db.is_admin(admin_uid, khatma_id):
+@app.route("/api/admin/user_hizbs")
+def admin_user_hizbs():
+    admin_uid = request.args.get("admin_uid")
+    target_uid = request.args.get("uid")
+    khatma_id = request.args.get("khatma_id")
+    pin = request.headers.get("X-Admin-Pin")
+    
+    if not db.verify_admin_credentials(admin_uid, khatma_id, pin):
         return jsonify({"error": "Unauthorized"}), 403
         
     return jsonify({"hizbs": db.get_user_hizbs(target_uid)})
@@ -950,8 +968,9 @@ def admin_control():
     d = request.get_json(); action = d.get("action"); uid = d.get("uid"); hizb = d.get("hizb")
     khatma_id = d.get("khatma_id") # NEW: Support multi-tenancy
     admin_uid = d.get("admin_uid") # NEW: Security check
+    pin = d.get("admin_pin")       # NEW: Pin check
     
-    if not db.is_admin(admin_uid, khatma_id):
+    if not db.verify_admin_credentials(admin_uid, khatma_id, pin):
         return jsonify({"error": "Unauthorized"}), 403
     
     if action == "unassign":

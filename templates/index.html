@@ -675,12 +675,21 @@
                     const link = `${window.location.origin}/${createdKhatmaId}`;
                     document.getElementById('khatma-link').textContent = link;
 
-                    // IMPORTANT: Store admin credentials for automatic login
-                    localStorage.setItem('web_user_name', adminName);
-                    localStorage.setItem('web_user_pin', adminPin);
-                    localStorage.setItem('web_user_uid', data.admin_uid);
-                    localStorage.setItem('is_admin', 'true');
-                    localStorage.setItem('admin_khatma_id', createdKhatmaId);
+                    // IMPORTANT: Store admin credentials for automatic login ONLY if admin was created
+                    if (data.admin_uid) {
+                        localStorage.setItem('web_user_name', adminName);
+                        localStorage.setItem('web_user_pin', adminPin);
+                        localStorage.setItem('web_user_uid', data.admin_uid);
+                        localStorage.setItem('is_admin', 'true');
+                        localStorage.setItem('admin_khatma_id', createdKhatmaId);
+                    } else {
+                        // Clear any previous admin session to avoid confusion
+                        localStorage.removeItem('is_admin');
+                        localStorage.removeItem('admin_khatma_id');
+                        localStorage.removeItem('web_user_uid');
+                        localStorage.removeItem('web_user_name');
+                        localStorage.removeItem('web_user_pin');
+                    }
 
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('success-screen').classList.remove('hidden');
