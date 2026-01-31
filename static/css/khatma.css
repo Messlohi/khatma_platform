@@ -1,0 +1,335 @@
+/* Khatma Dashboard Specific Styles */
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    padding: 50px 0;
+    position: relative;
+    background: linear-gradient(135deg, var(--primary), #064e3b);
+    color: var(--white);
+    border-radius: 0 0 40px 40px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    color: var(--border-gold);
+}
+
+.duaa {
+    font-size: 1.2rem;
+    opacity: 0.95;
+    font-style: italic;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.8;
+}
+
+.status-card {
+    background: var(--white);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.progress-container {
+    height: 12px;
+    background: #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-light), var(--primary));
+    width: 0%;
+    transition: width 1s ease;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.stat-item span {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+#switch-btn.logged-in {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-gold);
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.admin-panel {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    margin-top: 30px;
+    border: 2px solid var(--secondary);
+    display: none;
+    overflow: visible;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 12px;
+    text-align: right;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-table th {
+    background: linear-gradient(135deg, var(--primary), #064e3b);
+    color: var(--border-gold);
+    font-weight: bold;
+}
+
+.admin-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.admin-action-cell {
+    position: relative;
+    text-align: left !important;
+}
+
+.action-menu-btn {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--primary), #064e3b);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.3rem;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(6, 95, 70, 0.2);
+}
+
+.action-menu-btn:hover {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(6, 95, 70, 0.3);
+}
+
+.action-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    background: white;
+    border: 2px solid var(--border-gold);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 180px;
+    overflow: hidden;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.action-menu.show {
+    display: block;
+}
+
+.action-menu-item {
+    display: block;
+    width: 100%;
+    padding: 12px 18px;
+    background: white;
+    border: none;
+    text-align: right;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+.action-menu-item:hover {
+    background: linear-gradient(90deg, var(--bg-cream), white);
+    color: var(--primary);
+    padding-right: 22px;
+}
+
+.action-menu-item:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.hizb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+    gap: 8px;
+    margin-bottom: 40px;
+}
+
+.hizb-btn {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--white);
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.hizb-btn:hover {
+    border-color: var(--secondary);
+    transform: translateY(-2px);
+}
+
+.hizb-btn.taken {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    border: none;
+}
+
+.hizb-btn.completed {
+    background: var(--primary);
+    color: white;
+    border: none;
+}
+
+.hizb-btn.my-hizb {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    animation: pulse 2s infinite;
+}
+
+.hizb-list {
+    margin-bottom: 40px;
+}
+
+.hizb-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--white);
+    padding: 0.2rem;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    border: 1.5px solid #e5e7eb;
+    transition: all 0.2s;
+}
+
+.hizb-list-item:hover {
+    transform: translateX(-3px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: var(--secondary);
+}
+
+.hizb-list-item.completed {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.hizb-list-item.taken {
+    background: #fef3c7;
+    border-color: var(--secondary);
+}
+
+.hizb-list-item.my-hizb {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+.hizb-number {
+    font-weight: bold;
+    font-size: 0.95rem;
+    min-width: 70px;
+}
+
+.hizb-reader {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.hizb-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 5ch;
+    justify-content: flex-end;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-badge.reserved {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.done {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.available {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(217, 119, 6, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+    }
+}

@@ -1,0 +1,1057 @@
+// Khatma Dashboard Core Logic
+
+// Initialize variables (khatmaId must be defined in HTML or fetched)
+const pathParts = window.location.pathname.split('/').filter(p => p);
+const khatmaId = pathParts[pathParts.length - 1]; // Fallback if not injected
+
+var currentHizb = null;
+var webUserName = localStorage.getItem('web_user_name') || null;
+var webUserPin = localStorage.getItem('web_user_pin') || null;
+var webUserUid = localStorage.getItem('web_user_uid') || null;
+
+// Validate and clean session
+if (webUserUid && (webUserUid === 'null' || webUserUid === 'undefined' || !webUserName)) {
+    localStorage.removeItem('web_user_uid');
+    localStorage.removeItem('web_user_name');
+    localStorage.removeItem('web_user_pin');
+    webUserUid = null;
+    webUserName = null;
+    webUserPin = null;
+}
+
+var currentLang = localStorage.getItem('khatma_lang') || 'ar';
+var myAssignments = JSON.parse(localStorage.getItem('my_assignments') || '[]');
+var serverVersion = 0;
+var deferredPrompt; // For PWA install
+
+const sessionPrefs = {
+    skipReadPrompt: false
+};
+
+// UI Update Function
+function updateUI() {
+    document.documentElement.lang = currentLang;
+    const t = i18n[currentLang];
+
+    // Safe update of text content
+    document.querySelectorAll('[data-t]').forEach(el => {
+        const key = el.getAttribute('data-t');
+        if (t[key]) el.textContent = t[key];
+    });
+
+    document.querySelectorAll('[data-p]').forEach(el => {
+        const key = el.getAttribute('data-p');
+        if (t[key]) el.placeholder = t[key];
+    });
+
+    // Mirroring specific elements manually if needed
+    const gridBtn = document.getElementById('grid-view-btn');
+    const listBtn = document.getElementById('list-view-btn');
+    if (gridBtn) gridBtn.innerHTML = t.grid_view;
+    if (listBtn) listBtn.innerHTML = t.list_view;
+}
+
+function handleLoginClick() {
+    if (webUserUid === "admin") {
+        openAdmin();
+    } else if (webUserUid) {
+        return;
+    } else {
+        openJoinModal(null);
+    }
+}
+
+function isMyCompleted(i) {
+    if (!window.hizbData || !window.hizbData.participants) return false;
+    const myUid = localStorage.getItem('webUserUid'); // Note: previously used 'web_user_uid' then 'webUserUid' var?
+    // In original code it was accessing localStorage directly for 'webUserUid' which might be inconsistent with var 'webUserUid' which is loaded from 'web_user_uid'
+    // Let's use the variable 'webUserUid' which is synchronized.
+    if (!webUserUid) return false;
+    const me = window.hizbData.participants.find(p => String(p.id) === String(webUserUid));
+    return me && me.completed && me.completed.includes(i);
+}
+
+function undoCompletePrompt(i) {
+    customConfirm(
+        currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`),
+        () => {
+            fetch('/api/undo_complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: webUserUid, hizb: i, khatma_id: khatmaId })
+            }).then(res => res.json()).then(d => {
+                if (d.success) fetchStatus().then(() => { renderGrid(); renderParticipants(); }); // Refresh
+                else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
+            });
+        }
+    );
+}
+
+function renderList() {
+    const list = document.getElementById('hizb-list');
+    list.innerHTML = '';
+
+    if (!window.hizbData) {
+        list.innerHTML = '<p style="text-align:center; width:100%; color:#ef4444;">فشل في تحميل البيانات من السيرفر</p>';
+        return;
+    }
+
+    const assignments = window.hizbData.assignments || {};
+    const available = window.hizbData.available_hizbs || [];
+    const allAssigned = Object.values(assignments).flat();
+
+    for (let i = 1; i <= 60; i++) {
+        const item = document.createElement('div');
+        item.className = 'hizb-list-item';
+
+        const isAvailable = available.includes(i);
+        const isActive = allAssigned.includes(i);
+        const isMine = myAssignments.includes(i);
+
+        let readerName = '';
+        // First check active assignments
+        for (const [name, hizbs] of Object.entries(assignments)) {
+            if (hizbs.includes(i)) {
+                readerName = name;
+                break;
+            }
+        }
+        // If not found in assignments, check completed Hizbs in participants
+        if (!readerName && window.hizbData.participants) {
+            for (const participant of window.hizbData.participants) {
+                if (participant.completed && participant.completed.includes(i)) {
+                    readerName = participant.name;
+                    break;
+                }
+            }
+        }
+
+        let statusClass = '';
+        let statusText = '';
+        let statusBadgeClass = 'available';
+
+        if (!isAvailable && !isActive) {
+            item.classList.add('completed');
+            statusText = currentLang === 'ar' ? 'مكتمل' : (currentLang === 'fr' ? 'Terminé' : 'Done');
+            statusBadgeClass = 'done';
+        } else if (isMine) {
+            item.classList.add('my-hizb');
+            statusText = currentLang === 'ar' ? 'حزبك' : (currentLang === 'fr' ? 'Le vôtre' : 'Yours');
+            statusBadgeClass = 'reserved';
+        } else if (isActive) {
+            item.classList.add('taken');
+            statusBadgeClass = 'reserved';
+        } else {
+            statusText = currentLang === 'ar' ? 'متاح' : (currentLang === 'fr' ? 'Disponible' : 'Available');
+        }
+
+        const hizbLabel = i18n[currentLang].hizb_label;
+        const takenByLabel = (!isAvailable && !isActive)
+            ? (currentLang === 'ar' ? 'تم بواسطة:' : (currentLang === 'fr' ? 'Complété par:' : 'Completed by:'))
+            : (currentLang === 'ar' ? 'محجوز:' : (currentLang === 'fr' ? 'Pris par:' : 'Taken by:'));
+
+        const readBtnHtml = `
+        <button onclick="event.stopPropagation(); window.open('https://quran.com/hizb/${i}?mushaf=3', '_blank');" 
+            style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.85rem; margin-left: 8px; transition: 0.2s; display: flex; align-items: center; gap: 4px;"
+            onmouseover="this.style.background='#047857'" 
+            onmouseout="this.style.background='var(--primary)'"
+            title="${currentLang === 'ar' ? 'اقرأ الآن' : (currentLang === 'fr' ? 'Lire maintenant' : 'Read now')}">
+            📖
+        </button>
+    `;
+
+        item.innerHTML = `
+        <div class="hizb-number">${hizbLabel} ${i}</div>
+        <div class="hizb-reader">${readerName ? `${takenByLabel} ${readerName}` : '-'}</div>
+        <div class="hizb-status" style="display: flex; align-items: center; gap: 8px;">
+            ${readBtnHtml}
+            ${statusText ? `<span class="status-badge ${statusBadgeClass}">${statusText}</span>` : ''}
+        </div>
+    `;
+
+        if (!isAvailable && !isActive) {
+            item.classList.add('completed');
+            if (isMyCompleted(i)) {
+                item.style.cursor = 'pointer';
+                item.onclick = () => undoCompletePrompt(i);
+            } else {
+                item.style.cursor = 'default';
+            }
+        } else if (isMine) {
+            item.style.cursor = 'pointer';
+            item.onclick = () => openActionModal(i);
+        } else if (isActive) {
+            item.style.cursor = 'not-allowed';
+            item.onclick = () => alert(i18n[currentLang].alert_reserved);
+        } else {
+            item.style.cursor = 'pointer';
+            item.onclick = () => handleHizbClick(i);
+        }
+
+        list.appendChild(item);
+    }
+}
+
+function switchView(viewType) {
+    const gridView = document.getElementById('hizb-grid');
+    const listView = document.getElementById('hizb-list');
+    const gridBtn = document.getElementById('grid-view-btn');
+    const listBtn = document.getElementById('list-view-btn');
+
+    if (viewType === 'grid') {
+        gridView.style.display = 'grid';
+        listView.style.display = 'none';
+        gridBtn.classList.add('active');
+        listBtn.classList.remove('active');
+        localStorage.setItem('hizb_view_preference', 'grid');
+    } else {
+        gridView.style.display = 'none';
+        listView.style.display = 'block';
+        listBtn.classList.add('active');
+        gridBtn.classList.remove('active');
+        renderList();
+        localStorage.setItem('hizb_view_preference', 'list');
+    }
+}
+
+async function init() {
+    updateUI();
+    showLoading(true);
+    try {
+        const isAdmin = localStorage.getItem('is_admin') === 'true';
+        const adminKhatmaId = localStorage.getItem('admin_khatma_id');
+
+        if (isAdmin && adminKhatmaId === khatmaId && webUserUid) {
+            document.getElementById('admin-badge').style.display = 'block';
+            await fetchStatus();
+            renderGrid();
+            renderParticipants();
+            showLoading(false);
+            openAdmin();
+            return;
+        }
+
+        if (webUserName) document.getElementById('user-name').value = webUserName;
+        if (webUserPin) document.getElementById('user-pin').value = webUserPin;
+        await fetchStatus();
+        renderGrid();
+        renderParticipants();
+
+        const savedView = localStorage.getItem('hizb_view_preference') || 'list';
+        switchView(savedView);
+
+        if (!webUserUid) {
+            setTimeout(() => openJoinModal(null), 800);
+        }
+    } catch (e) {
+        console.error("Initialization error:", e);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function fetchStatus() {
+    try {
+        let url = webUserUid ? `/api/khatma?uid=${webUserUid}&khatma_id=${khatmaId}` : `/api/khatma?khatma_id=${khatmaId}`;
+        url += `&t=${new Date().getTime()}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+
+        if (data.error) throw new Error(data.error);
+
+        serverVersion = data.version;
+        window.hizbData = data;
+
+        const comp = data.completed_count || 0;
+        const act = data.active_count || 0;
+        const rem = data.remaining_count !== undefined ? data.remaining_count : (60 - comp - act);
+
+        document.getElementById('stat-completed').innerText = comp;
+        document.getElementById('stat-active').innerText = act;
+        document.getElementById('stat-remaining').innerText = rem;
+        document.getElementById('progress-bar').style.width = ((comp / 60) * 100) + '%';
+        document.getElementById('khatma-title').innerText = comp >= 60 ? i18n[currentLang].khatma_completed_title : i18n[currentLang].khatma_progress;
+
+        const switchBtn = document.getElementById('switch-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        if (switchBtn) {
+            switchBtn.innerText = webUserUid ? webUserName : "👤 دخول / تسجيل";
+            switchBtn.classList.toggle('logged-in', !!webUserUid);
+            if (webUserName === "Admin") {
+                switchBtn.innerText = "👑 لوحة التحكم";
+            }
+        }
+        if (logoutBtn) {
+            logoutBtn.style.display = webUserUid ? 'block' : 'none';
+        }
+        const editNameBtn = document.getElementById('edit-name-btn');
+        if (editNameBtn) {
+            editNameBtn.style.display = (webUserUid && webUserName !== "Admin") ? 'block' : 'none';
+        }
+
+        if (data.my_assignments) {
+            myAssignments = data.my_assignments;
+            localStorage.setItem('my_assignments', JSON.stringify(myAssignments));
+        }
+
+        if (data.total_khatmas !== undefined) document.getElementById('stat-total').innerText = data.total_khatmas;
+        if (data.intentions) renderDuaas(data.intentions);
+
+        if (data.khatma_name) {
+            const headerTitle = document.querySelector('h1[data-t="header_title"]');
+            if (headerTitle) {
+                headerTitle.innerText = data.khatma_name;
+            }
+            document.title = data.khatma_name;
+        }
+
+        if (data.intention) {
+            const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
+            if (duaaElement) {
+                duaaElement.innerHTML = data.intention.replace(/\n/g, '<br>');
+            }
+        }
+    } catch (e) {
+        console.error("Fetch error:", e);
+        document.getElementById('khatma-title').innerText = "خطأ في المزامنة";
+        window.hizbData = null;
+    }
+}
+
+function renderGrid() {
+    const grid = document.getElementById('hizb-grid');
+    grid.innerHTML = '';
+
+    if (!window.hizbData) {
+        grid.innerHTML = '<p style="text-align:center; width:100%; color:#ef4444;">فشل في تحميل البيانات من السيرفر</p>';
+        return;
+    }
+
+    const assignments = window.hizbData.assignments || {};
+    const available = window.hizbData.available_hizbs || [];
+    const allAssigned = Object.values(assignments).flat();
+
+    for (let i = 1; i <= 60; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'hizb-btn';
+        btn.innerText = i;
+
+        const isAvailable = available.includes(i);
+        const isActive = allAssigned.includes(i);
+        const isMine = myAssignments.includes(i);
+
+        if (!isAvailable && !isActive) {
+            btn.classList.add('completed');
+            if (isMyCompleted(i)) {
+                btn.style.cursor = 'pointer';
+                btn.onclick = () => undoCompletePrompt(i);
+            }
+        } else if (isMine) {
+            btn.classList.add('my-hizb');
+            btn.onclick = () => openActionModal(i);
+        } else if (isActive) {
+            btn.classList.add('taken');
+            btn.onclick = () => alert(i18n[currentLang].alert_reserved);
+        } else {
+            btn.onclick = () => handleHizbClick(i);
+        }
+
+        grid.appendChild(btn);
+    }
+}
+
+function updateTimer() {
+    if (!window.hizbData || !window.hizbData.deadline) return;
+
+    const deadline = new Date(window.hizbData.deadline.replace(/-/g, "/")).getTime();
+    const now = new Date().getTime();
+    const diff = deadline - now;
+
+    if (diff <= 0) {
+        document.getElementById('countdown').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('countdown').style.display = 'block';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    document.getElementById('days').innerText = days;
+    document.getElementById('hours').innerText = hours;
+    document.getElementById('minutes').innerText = minutes;
+    document.getElementById('seconds').innerText = seconds;
+}
+
+function renderParticipants() {
+    const list = document.getElementById('participant-list'); list.innerHTML = '';
+    if (window.hizbData.participants) {
+        const parts = window.hizbData.participants;
+        if (parts.length === 0) { list.innerHTML = `<p style="text-align: center; color: #9ca3af;">${i18n[currentLang].no_readers}</p>`; return; }
+
+        parts.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
+            const item = document.createElement('div'); item.className = 'participant-item';
+            let html = `<strong>${p.name}</strong><div style="font-size:0.9rem;">`;
+            if (p.active && p.active.length > 0) {
+                html += `<span style="color:var(--secondary); margin-left:8px;">⏳ ${p.active.join(', ')}</span>`;
+            }
+            if (p.completed && p.completed.length > 0) {
+                const lbl = currentLang === 'ar' ? 'تم' : (currentLang === 'fr' ? 'Fait' : 'Done');
+                html += `<span style="color:var(--primary); font-weight:bold;">✅ ${lbl} ${p.completed.join(', ')}</span>`;
+            }
+            html += `</div>`;
+            item.innerHTML = html;
+            list.appendChild(item);
+        });
+    } else {
+        const entries = Object.entries(window.hizbData.assignments || {});
+        if (entries.length === 0) { list.innerHTML = `<p style="text-align: center; color: #9ca3af;">${i18n[currentLang].no_readers}</p>`; return; }
+        entries.sort().forEach(([name, hizbs]) => {
+            const item = document.createElement('div'); item.className = 'participant-item';
+            item.innerHTML = `<strong>${name}</strong><span style="color:var(--secondary)">${currentLang === 'ar' ? 'الأحزاب' : (currentLang === 'fr' ? 'Hizbs' : 'Hizbs')}: ${hizbs.join(', ')}</span>`;
+            list.appendChild(item);
+        });
+    }
+}
+
+function renderDuaas(intentions) {
+    const list = document.getElementById('dua-list'); list.innerHTML = '';
+    intentions.forEach(i => {
+        const div = document.createElement('div');
+        div.style = "background: white; padding: 10px; border-radius: 10px; border: 1px solid #fee2e2; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: start;";
+
+        let deleteHtml = '';
+        if (String(i.uid) === String(webUserUid) || webUserName === "Admin") {
+            deleteHtml = `<button onclick="deleteDua('${i.id}')" style="background:none; border:none; color:#ef4444; font-size:1.1rem; cursor:pointer; padding: 0 5px;">&times;</button>`;
+        }
+
+        div.innerHTML = `<div>
+                            <div style="font-weight: bold; color: #b91c1c; font-size: 0.85rem; margin-bottom: 2px;">${i.name}</div>
+                            <div style="font-size: 0.95rem;">${i.text}</div>
+                        </div>
+                        ${deleteHtml}`;
+        list.appendChild(div);
+    });
+}
+
+async function deleteDua(id) {
+    let msg = 'Delete this duaa?';
+    if (currentLang === 'ar') msg = 'هل تريد حذف هذا الدعاء؟';
+    else if (currentLang === 'fr') msg = 'Supprimer ce duaa ?';
+
+    const confirmed = await customConfirm(msg);
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        await fetch('/api/intention/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: webUserUid, id: id })
+        });
+        await init();
+    } catch (e) { alert('Error'); showLoading(false); }
+}
+
+function openDuaModal() {
+    let msg = 'Please login first';
+    if (currentLang === 'ar') msg = 'الرجاء تسجيل الاسم أولاً';
+    else if (currentLang === 'fr') msg = 'Veuillez vous connecter d\'abord';
+
+    if (!webUserUid) return alert(msg);
+    document.getElementById('dua-text').value = '';
+    document.getElementById('dua-modal').style.display = 'flex';
+}
+
+async function addDua() {
+    const text = document.getElementById('dua-text').value.trim();
+    if (!text) return;
+    showLoading(true);
+    try {
+        await fetch('/api/intention', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: webUserUid, name: webUserName, text: text })
+        });
+        closeModal(); await init();
+    } catch (e) { alert('Error'); showLoading(false); }
+}
+
+function readHizb() {
+    if (!currentHizb) return;
+    window.open(`https://quran.com/hizb/${currentHizb}?mushaf=3`, '_blank');
+}
+
+function triggerConfetti() {
+    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+}
+
+function openJoinModal(h) {
+    currentHizb = h;
+    const titleEl = document.getElementById('modal-title');
+    const btnEl = document.querySelector('#join-modal .btn-primary');
+
+    if (h) {
+        titleEl.innerText = currentLang === 'ar' ? `حجز الحزب ${h}` : (currentLang === 'fr' ? `Réserver Hizb ${h}` : `Book Hizb ${h}`);
+        btnEl.innerText = i18n[currentLang].confirm_hizb;
+    } else {
+        titleEl.innerText = i18n[currentLang].login;
+        btnEl.innerText = currentLang === 'ar' ? 'تأكيد ✅' : (currentLang === 'fr' ? 'Confirmer ✅' : 'Confirm ✅');
+    }
+
+    document.getElementById('join-modal').style.display = 'flex';
+}
+
+async function handleHizbClick(h) {
+    currentHizb = h;
+    if (webUserUid) {
+        const confirmed = await customConfirm(i18n[currentLang].confirm_book_hizb.replace('{hizb}', h).replace('{name}', webUserName));
+        if (confirmed) {
+            await quickJoin(h);
+        }
+    } else {
+        openJoinModal(h);
+    }
+}
+
+async function quickJoin(h) {
+    showLoading(true);
+    try {
+        const res = await fetch('/api/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: webUserName, pin: webUserPin, hizb: h, khatma_id: khatmaId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            await init();
+            openReadPrompt();
+        } else { await customAlert(data.error, '', '❌'); showLoading(false); }
+    } catch (e) { await customAlert('خطأ في الاتصال', '', '❌'); showLoading(false); }
+}
+
+function openActionModal(h) {
+    currentHizb = h;
+    document.getElementById('action-title').innerText = `${i18n[currentLang].manage_hizb} ${h}`;
+    const doneAllBtn = document.getElementById('done-all-btn');
+    if (doneAllBtn) {
+        doneAllBtn.style.display = (myAssignments && myAssignments.length > 1) ? 'block' : 'none';
+    }
+    document.getElementById('action-modal').style.display = 'flex';
+}
+
+async function joinHizb() {
+    const name = document.getElementById('user-name').value.trim();
+    const pin = document.getElementById('user-pin').value.trim();
+    if (!name) return await customAlert('أدخل اسمك', '', '⚠️');
+    showLoading(true);
+    try {
+        // Check if admin login
+        if (name === "Admin") {
+            const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin }) });
+            const data = await res.json();
+            if (data.success) {
+                webUserName = "Admin"; webUserUid = "admin"; webUserPin = pin;
+                localStorage.setItem('web_user_uid', 'admin'); localStorage.setItem('web_user_name', 'Admin'); localStorage.setItem('web_user_pin', pin);
+                closeModal(); await init(); return;
+            } else { showLoading(false); await customAlert(data.error, '', '❌'); return; }
+        }
+
+        const body = { name, pin };
+        if (currentHizb) body.hizb = currentHizb;
+        body.khatma_id = khatmaId;
+
+        const res = await fetch(currentHizb ? '/api/join' : '/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            webUserUid = data.uid; webUserName = name; webUserPin = pin;
+            localStorage.setItem('web_user_uid', webUserUid); localStorage.setItem('web_user_name', webUserName); localStorage.setItem('web_user_pin', webUserPin);
+
+            if (data.is_admin) {
+                localStorage.setItem('is_admin', 'true');
+                window.location.href = '/?admin=true'; // Redirecting to home with admin query? Or re-init?
+                // The original code redirected to '/?admin=true'.
+                // Ideally it should stay on the same khatma page but open admin panel
+                // But let's keep original behavior for now or improve it?
+                // Actually, if we are inside a specific Khatma page, we probably want to administer THIS khatma.
+                // Original code: window.location.href = '/?admin=true';
+                // This redirects to the HOME PAGE.
+                // Maybe the user intends to go to the global admin panel?
+                // I will keep it for now but note it's weird behavior inside a specific khatma.
+                return;
+            }
+
+            closeModal(); await init();
+            if (currentHizb) openReadPrompt();
+        } else { showLoading(false); await customAlert(data.error, '', '❌'); }
+    } catch (e) { showLoading(false); await customAlert('خطأ في الاتصال', '', '❌'); }
+}
+
+async function openAdmin() {
+    showLoading(true);
+    const headers = { 'X-Admin-Pin': webUserPin || '' };
+    const res = await fetch(`/api/admin/users?khatma_id=${khatmaId}&uid=${webUserUid}`, { headers });
+    const data = await res.json();
+    const list = document.getElementById('admin-user-list');
+    list.innerHTML = '';
+    const t = i18n[currentLang];
+    data.users.forEach(u => {
+        const tr = document.createElement('tr');
+        const menuId = `menu-${u.id}`;
+        tr.innerHTML = `
+            <td>${u.name} ${u.pin ? '🔒' : ''}</td>
+            <td>${u.active}</td>
+            <td>${u.completed}</td>
+            <td class="admin-action-cell">
+                <button class="action-menu-btn" onclick="toggleActionMenu('${menuId}', event)">⋯</button>
+                <div class="action-menu" id="${menuId}">
+                    <button class="action-menu-item" onclick="adminEditUserName('${u.id}', '${u.name}'); closeAllMenus()">${t.action_edit_name}</button>
+                    <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'complete'); closeAllMenus()">${t.action_complete}</button>
+                    <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'unassign'); closeAllMenus()">${t.action_unassign}</button>
+                    <button class="action-menu-item" onclick="adminAction('${u.id}', 'reset_pin'); closeAllMenus()">${t.action_reset_pin}</button>
+                </div>
+            </td>
+        `;
+        tr.setAttribute('data-user-name', u.name.toLowerCase());
+        list.append(tr);
+    });
+    document.getElementById('admin-panel').style.display = 'block';
+    document.getElementById('open-admin-btn').style.display = 'none';
+
+    document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    document.getElementById('admin-deadline').value = window.hizbData.deadline.split(' ')[0];
+
+    const totalKhatmas = parseInt(window.hizbData.total_khatmas) || 0;
+    document.getElementById('admin-total-khatmas').value = totalKhatmas;
+
+    const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
+    const currentIntention = duaaElement ? duaaElement.innerText : '';
+    document.getElementById('admin-intention').value = currentIntention;
+
+    showLoading(false);
+    document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleActionMenu(menuId, event) {
+    event.stopPropagation();
+    closeAllMenus();
+    const menu = document.getElementById(menuId);
+    if (menu) menu.classList.add('show');
+}
+
+function closeAllMenus() {
+    document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('show'));
+}
+
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.action-menu-btn')) {
+        closeAllMenus();
+    }
+});
+
+function filterAdminUsers(searchText) {
+    const rows = document.querySelectorAll('#admin-user-list tr');
+    const search = searchText.toLowerCase().trim();
+
+    rows.forEach(row => {
+        const userName = row.getAttribute('data-user-name') || '';
+        if (userName.includes(search)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function closeAdmin() {
+    document.getElementById('admin-panel').style.display = 'none';
+    document.getElementById('open-admin-btn').style.display = 'inline-block';
+}
+
+async function adminManageUser(uid, name, action) {
+    const headers = { 'X-Admin-Pin': webUserPin || '' };
+    const res = await fetch(`/api/admin/user_hizbs?uid=${uid}&admin_uid=${webUserUid}&khatma_id=${khatmaId}`, { headers });
+    const data = await res.json();
+    const t = i18n[currentLang];
+    if (!data.hizbs || data.hizbs.length === 0) return alert(t.error_user_no_active_hizbs);
+
+    const msg = t.prompt_choose_hizb
+        .replace('{action}', action)
+        .replace('{name}', name)
+        .replace('{hizbs}', data.hizbs.join(', '));
+
+    const hizb = prompt(msg);
+    if (hizb && data.hizbs.includes(parseInt(hizb))) {
+        await adminAction(uid, action, parseInt(hizb));
+    } else if (hizb) {
+        alert(t.alert_invalid_number);
+    }
+}
+
+async function adminAction(uid, action, hizb = null) {
+    const confirmed = await customConfirm(i18n[currentLang].confirm_generic);
+    if (!confirmed) return;
+    showLoading(true);
+    const res = await fetch('/api/admin/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, uid, hizb, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
+    });
+    const data = await res.json();
+    if (data.success) {
+        if (data.completed) alert('مبارك! اكتملت الختمة 🎊');
+        await init(); await openAdmin();
+    } else alert(data.error);
+    showLoading(false);
+}
+
+async function adminSetDeadline() {
+    const d = document.getElementById('admin-deadline').value;
+    if (!d) return alert(i18n[currentLang].alert_select_date);
+    const confirmed = await customConfirm(i18n[currentLang].confirm_change_date.replace('{date}', d));
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        const res = await fetch('/api/admin/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'deadline', hizb: d, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
+        });
+        if (res.ok) {
+            await init();
+        } else {
+            alert('فشل تحديث الموعد');
+            showLoading(false);
+        }
+    } catch (e) {
+        alert('خطأ في الاتصال');
+        showLoading(false);
+    }
+}
+
+async function adminUpdateTotalKhatmas() {
+    const newTotal = parseInt(document.getElementById('admin-total-khatmas').value);
+    if (isNaN(newTotal) || newTotal < 0) return alert(i18n[currentLang].alert_enter_valid_number);
+    const confirmed = await customConfirm(i18n[currentLang].confirm_change_total.replace('{count}', newTotal));
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        const res = await fetch('/api/admin/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_total', hizb: newTotal, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            await init();
+            alert(i18n[currentLang].alert_update_success);
+        } else {
+            alert(data.error || 'فشل تحديث العدد');
+        }
+        showLoading(false);
+    } catch (e) {
+        alert('خطأ في الاتصال');
+        showLoading(false);
+    }
+}
+
+async function adminUpdateIntention() {
+    const newIntention = document.getElementById('admin-intention').value.trim();
+    if (!newIntention) return alert(i18n[currentLang].alert_enter_intention);
+    const confirmed = await customConfirm(i18n[currentLang].confirm_update_intention);
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        const res = await fetch('/api/admin/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_intention', hizb: newIntention, admin_uid: webUserUid, khatma_id: khatmaId, admin_pin: webUserPin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.querySelector('.duaa[data-t="header_sub"]').innerHTML = newIntention.replace(/\n/g, '<br>');
+            await init();
+            alert(i18n[currentLang].alert_update_success);
+        } else {
+            alert(data.error || 'فشل تحديث النية');
+        }
+        showLoading(false);
+    } catch (e) {
+        alert('خطأ في الاتصال');
+        showLoading(false);
+    }
+}
+
+const DEFAULT_INTENTION = "اللهم اجعلها ختمة مباركة في ميزان حسناتنا جميعاً.\nاللهم تقبل منا صالح الأعمال واغفر لنا وارحمنا.";
+
+async function resetIntentionToDefault() {
+    const confirmed = await customConfirm(i18n[currentLang].confirm_reset_intention);
+    if (!confirmed) return;
+    const plainDefault = DEFAULT_INTENTION.replace(/<br>/g, '\n').replace(/<\/?b>/g, '');
+    document.getElementById('admin-intention').value = plainDefault;
+}
+
+async function markDone() {
+    showLoading(true);
+    try {
+        const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
+        const data = await res.json();
+        if (data.success) {
+            if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
+            closeModal(); await init();
+        }
+        else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+    } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
+}
+
+async function markAllDone() {
+    const confirmed = await customConfirm(i18n[currentLang].confirm_complete_all);
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        const res = await fetch('/api/done_all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid }) });
+        const data = await res.json();
+        if (data.success) {
+            if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
+            closeModal(); await init();
+        }
+        else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+    } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
+}
+
+async function returnHizb() {
+    const confirmed = await customConfirm(i18n[currentLang].confirm_unassign_hizb);
+    if (!confirmed) return;
+    showLoading(true);
+    try {
+        const res = await fetch('/api/return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
+        const data = await res.json();
+        if (data.success) { closeModal(); await init(); }
+        else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+    } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
+}
+
+async function checkUpdates() {
+    try {
+        const res = await fetch('/api/check_update');
+        const data = await res.json();
+        if (data.version && data.version !== serverVersion) {
+            await fetchStatus(); renderGrid(); renderParticipants();
+        }
+    } catch (e) { console.error("Sync error", e); }
+}
+
+async function logout() {
+    const confirmed = await customConfirm(i18n[currentLang].confirm_logout);
+    if (confirmed) {
+        localStorage.clear();
+        window.location.reload();
+    }
+}
+
+async function shareKhatma() {
+    const shareUrl = window.location.href;
+    const shareTitle = document.querySelector('h1[data-t="header_title"]').innerText;
+    const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
+    const duaaText = duaaElement ? duaaElement.innerText.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim() : '';
+
+    const shareText = `🕌 ${shareTitle}\n\n${duaaText}\n\n📖 ${currentLang === 'ar' ? 'شارك معنا في الختمة' : (currentLang === 'fr' ? 'Participez avec nous' : 'Join us in the Khatma')}`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: shareTitle,
+                text: shareText,
+                url: shareUrl
+            });
+        } catch (err) {
+            console.error('Share failed:', err);
+        }
+    } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
+        });
+    }
+}
+
+function openEditNameModal() {
+    const modal = document.getElementById('edit-name-modal');
+    const input = document.getElementById('edit-name-input');
+    input.value = webUserName || '';
+    modal.style.display = 'flex';
+}
+
+function closeEditNameModal() {
+    document.getElementById('edit-name-modal').style.display = 'none';
+}
+
+async function saveNewName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (!newName) {
+        alert(currentLang === 'ar' ? 'الرجاء إدخال اسم' : (currentLang === 'fr' ? 'Veuillez entrer un nom' : 'Please enter a name'));
+        return;
+    }
+    if (newName === webUserName) {
+        closeEditNameModal();
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const res = await fetch('/api/user/update_name', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                uid: webUserUid,
+                name: newName,
+                requester_uid: webUserUid
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            webUserName = newName;
+            localStorage.setItem('user_name', newName); // Inconsistent key in original? 'web_user_name' vs 'user_name'?
+            // Original code used 'user_name' at line 2421! 
+            // But init uses 'web_user_name'. 
+            // I should stick to 'web_user_name' for consistency. I will use 'web_user_name'.
+            localStorage.setItem('web_user_name', newName);
+
+            const switchBtn = document.getElementById('switch-btn');
+            if (switchBtn) switchBtn.innerText = webUserName;
+
+            closeEditNameModal();
+            await init();
+            alert(currentLang === 'ar' ? '✅ تم تحديث الاسم بنجاح' : (currentLang === 'fr' ? '✅ Nom mis à jour' : '✅ Name updated successfully'));
+        } else {
+            if (data.error === "Name already taken") {
+                alert(currentLang === 'ar' ? '❌ هذا الاسم مستخدم بالفعل' : (currentLang === 'fr' ? '❌ Ce nom est déjà utilisé' : '❌ Name already taken'));
+            } else {
+                alert(data.error || (currentLang === 'ar' ? 'فشل تحديث الاسم' : (currentLang === 'fr' ? 'Échec de la mise à jour' : 'Failed to update name')));
+            }
+        }
+        showLoading(false);
+    } catch (e) {
+        alert(currentLang === 'ar' ? 'خطأ في الاتصال' : (currentLang === 'fr' ? 'Erreur de connexion' : 'Connection error'));
+        showLoading(false);
+    }
+}
+
+async function adminEditUserName(uid, currentName) {
+    const newName = prompt(`تعديل اسم المستخدم:\nالاسم الحالي: ${currentName}\n\nأدخل الاسم الجديد:`, currentName);
+    if (!newName || newName.trim() === '' || newName === currentName) return;
+
+    showLoading(true);
+    try {
+        const res = await fetch('/api/user/update_name', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                uid: uid,
+                name: newName.trim(),
+                requester_uid: webUserUid  // Admin's UID
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            await init();
+            await openAdmin();
+            alert('✅ تم تحديث اسم المستخدم بنجاح');
+        } else {
+            alert(data.error || 'فشل تحديث الاسم');
+        }
+        showLoading(false);
+    } catch (e) {
+        alert('خطأ في الاتصال');
+        showLoading(false);
+    }
+}
+
+function openReadPrompt() {
+    if (sessionPrefs.skipReadPrompt) return;
+    const modal = document.getElementById('read-prompt-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function smartRead(now) {
+    closeModal();
+    if (now) {
+        readHizb();
+    } else {
+        sessionPrefs.skipReadPrompt = true;
+    }
+}
+
+// PWA Logic
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+});
+
+async function installPWA() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            deferredPrompt = null;
+            dismissPWA('forever');
+        }
+    } else {
+        const instr = document.getElementById('pwa-instructions');
+        if (instr) instr.style.display = 'block';
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (!isIOS) {
+            const step1 = document.getElementById('instr-step-1');
+            if (step1) step1.innerHTML = 'اضغط على القائمة (ثلاث نقاط) <span style="font-size:1.2rem;">⋮</span>';
+        }
+    }
+}
+
+function dismissPWA(type) {
+    const banner = document.getElementById('pwa-onboarding');
+    if (banner) banner.style.display = 'none';
+
+    if (type === 'forever') {
+        localStorage.setItem('pwa_dismissed_forever', '1');
+    } else if (type === 'later') {
+        const tomorrow = new Date().getTime() + (24 * 60 * 60 * 1000);
+        localStorage.setItem('pwa_dismissed_until', tomorrow);
+    }
+}
+
+function checkPWAOnboarding() {
+    const dismissedForever = localStorage.getItem('pwa_dismissed_forever');
+    const dismissedUntil = localStorage.getItem('pwa_dismissed_until');
+    const now = new Date().getTime();
+
+    if (dismissedForever) return;
+    if (dismissedUntil && now < parseInt(dismissedUntil)) return;
+
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (!isPWA) {
+        setTimeout(() => {
+            const banner = document.getElementById('pwa-onboarding');
+            if (banner) banner.style.display = 'block';
+        }, 2000);
+    }
+}
+
+function closeOnboarding() { dismissPWA('later'); }
+
+window.onload = () => {
+    init();
+    setInterval(checkUpdates, 10000);
+    setInterval(updateTimer, 1000);
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(e => console.log(e));
+    }
+};
