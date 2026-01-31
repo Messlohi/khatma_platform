@@ -351,16 +351,34 @@
                         <input type="text" id="khatma-name" placeholder="مثال: ختمة عائلة المحمد" required>
                     </div>
 
-                    <div class="form-group">
-                        <label data-t="admin_name">👤 اسم المنظم (الأدمن)</label>
-                        <input type="text" id="admin-name" placeholder="اسمك الكامل" required>
+                    <!-- Optional Admin Toggle -->
+                    <div class="form-group"
+                        style="background: rgba(6, 95, 70, 0.05); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary); margin-bottom: 15px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" id="enable-admin" onchange="toggleAdminFields()"
+                                style="width:auto; transform:scale(1.2);">
+                            <label for="enable-admin"
+                                style="margin:0; cursor:pointer; font-weight:600; color:var(--primary);">
+                                <span data-t="enable_admin_label">🛠️ أريد إدارة هذه الختمة (اختياري)</span>
+                            </label>
+                        </div>
+                        <p style="font-size:0.8rem; color:#6b7280; margin-top:5px; margin-right:25px;"
+                            data-t="enable_admin_desc">
+                            قم بتفعيل هذا الخيار لتعيين كلمة مرور، تحديد موعد انتهاء، أو حذف مشاركين لاحقاً.
+                        </p>
                     </div>
 
-                    <div class="form-group">
-                        <label data-t="admin_pin">🔒 رمز سري (4 أرقام)</label>
-                        <input type="password" id="admin-pin" placeholder="••••" maxlength="4" pattern="[0-9]{4}"
-                            required>
-                        <small style="color: #6b7280; font-size: 0.9rem;">* للتحكم في إعدادات الختمة لاحقاً</small>
+                    <div id="admin-fields" class="hidden">
+                        <div class="form-group">
+                            <label data-t="admin_name">👤 اسم المنظم (الأدمن)</label>
+                            <input type="text" id="admin-name" placeholder="اسمك الكامل">
+                        </div>
+
+                        <div class="form-group">
+                            <label data-t="admin_pin">🔒 رمز سري (4 أرقام)</label>
+                            <input type="password" id="admin-pin" placeholder="••••" maxlength="4" pattern="[0-9]{4}">
+                            <small style="color: #6b7280; font-size: 0.9rem;">* للتحكم في إعدادات الختمة لاحقاً</small>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -487,7 +505,10 @@
                 alert_success_copy: "✅ تم نسخ الرابط!",
                 // Share
                 share_btn: "📤 مشاركة الرابط",
+                share_btn: "📤 مشاركة الرابط",
                 alert_error_create: "فشل في إنشاء الختمة",
+                enable_admin_label: "🛠️ أريد إدارة هذه الختمة (اختياري)",
+                enable_admin_desc: "قم بتفعيل هذا الخيار لتعيين كلمة مرور، تحديد موعد انتهاء، أو حذف مشاركين لاحقاً.",
                 alert_error_login: "بيانات الأدمن غير صحيحة أو ليس لديك صلاحيات",
                 alert_error_connection: "خطأ في الاتصال: "
             },
@@ -527,6 +548,8 @@
                 alert_success_copy: "✅ Link copied!",
                 // Share
                 share_btn: "📤 Share Link",
+                enable_admin_label: "🛠️ I want to manage this Khatma (Optional)",
+                enable_admin_desc: "Enable this to set a PIN, deadline, or manage users later.",
                 alert_error_create: "Failed to create Khatma",
                 alert_error_login: "Invalid credentials or unauthorized",
                 alert_error_connection: "Connection error: "
@@ -567,6 +590,8 @@
                 alert_success_copy: "✅ Lien copié !",
                 // Share
                 share_btn: "📤 Partager le lien",
+                enable_admin_label: "🛠️ Je veux gérer cette Khatma (Optionnel)",
+                enable_admin_desc: "Activez ceci pour définir un code PIN, une date limite ou gérer les participants.",
                 alert_error_create: "Échec de création de la Khatma",
                 alert_error_login: "Identifiants invalides ou non autorisé",
                 alert_error_connection: "Erreur de connexion : "
@@ -614,8 +639,16 @@
             event.preventDefault();
 
             const khatmaName = document.getElementById('khatma-name').value;
-            const adminName = document.getElementById('admin-name').value;
-            const adminPin = document.getElementById('admin-pin').value;
+
+            // Optional Admin Logic
+            const enableAdmin = document.getElementById('enable-admin').checked;
+            const adminName = enableAdmin ? document.getElementById('admin-name').value : null;
+            const adminPin = enableAdmin ? document.getElementById('admin-pin').value : null;
+
+            if (enableAdmin && (!adminName || !adminPin)) {
+                return alert(translations[currentLang].alert_error_create || "Please fill admin details");
+            }
+
             const intention = document.getElementById('intention').value;
             const deadline = document.getElementById('deadline').value;
 
