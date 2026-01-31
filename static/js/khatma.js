@@ -1,8 +1,11 @@
 // Khatma Dashboard Core Logic using i18n & utils
 
 // Initialize variables (khatmaId must be defined in HTML or fetched)
-const pathParts = window.location.pathname.split('/').filter(p => p);
-const khatmaId = pathParts[pathParts.length - 1]; // Fallback if not injected
+// Initialize variables (khatmaId must be defined in HTML or fetched)
+// khatmaId is defined as a global in khatma.html
+if (typeof khatmaId === 'undefined') {
+    console.error("khatmaId is undefined!");
+}
 
 var currentHizb = null;
 var webUserName = localStorage.getItem('web_user_name') || null;
