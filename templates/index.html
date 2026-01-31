@@ -418,7 +418,7 @@
                         <input type="text" id="admin-khatma-id" placeholder="abc123" required>
                         <small style="color: #6b7280; font-size: 0.9rem;" data-t="admin_login_id_hint">* معرف الختمة
                             موجود في الرابط:
-                            /khatma/<strong>abc123</strong></small>
+                            /<strong>abc123</strong></small>
                     </div>
 
                     <button type="submit" class="btn btn-primary" data-t="admin_login_btn">دخول لوحة التحكم →</button>
@@ -466,7 +466,7 @@
                 admin_login_name_label: "👤 اسم الأدمن",
                 admin_login_pin_label: "🔒 الرمز السري",
                 admin_login_id_label: "🔗 معرف الختمة (Khatma ID)",
-                admin_login_id_hint: "* معرف الختمة موجود في الرابط: /khatma/<strong>abc123</strong>",
+                admin_login_id_hint: "* معرف الختمة موجود في الرابط: /<strong>abc123</strong>",
                 admin_login_btn: "دخول لوحة التحكم →",
                 // Alerts & Errors
                 alert_success_copy: "✅ تم نسخ الرابط!",
@@ -504,7 +504,7 @@
                 admin_login_name_label: "👤 Admin Name",
                 admin_login_pin_label: "🔒 Secret PIN",
                 admin_login_id_label: "🔗 Khatma ID",
-                admin_login_id_hint: "* Khatma ID is in the link: /khatma/<strong>abc123</strong>",
+                admin_login_id_hint: "* Khatma ID is in the link: /<strong>abc123</strong>",
                 admin_login_btn: "Enter Control Panel →",
                 // Alerts & Errors
                 alert_success_copy: "✅ Link copied!",
@@ -542,7 +542,7 @@
                 admin_login_name_label: "👤 Nom Admin",
                 admin_login_pin_label: "🔒 Code PIN",
                 admin_login_id_label: "🔗 ID Khatma",
-                admin_login_id_hint: "* L'ID est dans le lien : /khatma/<strong>abc123</strong>",
+                admin_login_id_hint: "* The ID is in the link: /<strong>abc123</strong>",
                 admin_login_btn: "Accéder au Panneau →",
                 // Alerts & Errors
                 alert_success_copy: "✅ Lien copié !",
@@ -618,7 +618,7 @@
 
                 if (data.success) {
                     createdKhatmaId = data.khatma_id;
-                    const link = `${window.location.origin}/khatma/${createdKhatmaId}`;
+                    const link = `${window.location.origin}/${createdKhatmaId}`;
                     document.getElementById('khatma-link').textContent = link;
 
                     // IMPORTANT: Store admin credentials for automatic login
@@ -650,7 +650,7 @@
         }
 
         function goToKhatma() {
-            window.location.href = `/khatma/${createdKhatmaId}`;
+            window.location.href = `/${createdKhatmaId}`;
         }
 
         function showAdminLogin() {
@@ -692,7 +692,7 @@
                     localStorage.setItem('admin_khatma_id', khatmaId);
 
                     // Redirect to Khatma control panel
-                    window.location.href = `/khatma/${khatmaId}`;
+                    window.location.href = `/${khatmaId}`;
                 } else {
                     alert((translations[currentLang].alert_error_login || 'Invalid credentials') + ': ' + (data.error || ''));
                     document.getElementById('loading').classList.add('hidden');

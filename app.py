@@ -596,7 +596,10 @@ def admin_login():
 @app.route("/api/admin/users")
 def admin_users():
     khatma_id = request.args.get("khatma_id")
-    return jsonify({"users": db.get_all_users(khatma_id)})
+    return jsonify({"users": db.get_all_users(khatma_id)}) 
+
+
+
 
 @app.route("/api/admin/user_hizbs")
 def admin_user_hizbs():
@@ -670,7 +673,7 @@ def webhook():
 def homepage():
     return render_template("index.html")
 
-@app.route("/khatma/<khatma_id>")
+@app.route("/<khatma_id>")
 def khatma_page(khatma_id):
     # Verify khatma exists
     khatma = db.get_khatma(khatma_id)

@@ -1032,7 +1032,9 @@
 
         <script>
             // Extract khatma_id from URL for multi-tenant support
-            const khatmaId = window.location.pathname.split('/').filter(p => p)[1]; // /khatma/<id> -> get <id>
+            // Extract ID from URL (now /<id>)
+            const pathParts = window.location.pathname.split('/').filter(p => p);
+            const khatmaId = pathParts[pathParts.length - 1]; // Robust way to get last segment
 
             var currentHizb = null;
             var webUserName = localStorage.getItem('web_user_name') || null;
