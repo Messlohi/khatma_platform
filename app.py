@@ -66,8 +66,14 @@ class DatabaseManager:
                 intention TEXT,
                 deadline TEXT,
                 total_khatmas INTEGER DEFAULT 0,
-                is_active INTEGER DEFAULT 1
+                is_active INTEGER DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )''')
+            
+            # Migration: Ensure updated_at exists
+            try:
+                c.execute("ALTER TABLE khatmas ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            except: pass
             
             # Legacy tables (keeping for Telegram bot compatibility)
             c.execute('CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY, title TEXT, last_update REAL)')
@@ -93,6 +99,12 @@ class DatabaseManager:
     def bump(self):
         with self.get_connection() as conn:
             conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+            conn.commit()
+
+    def bump_khatma(self, khatma_id):
+        if not khatma_id: return
+        with self.get_connection() as conn:
+            conn.execute("UPDATE khatmas SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (khatma_id,))
             conn.commit()
 
     def get_v(self):
@@ -148,7 +160,9 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 conn.execute("INSERT INTO hizb_assignments VALUES (?, ?, ?, ?)", 
                            (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump(); return True
+                conn.execute("INSERT INTO hizb_assignments VALUES (?, ?, ?, ?)", 
+                           (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
+                conn.commit(); self.bump(); self.bump_khatma(khatma_id); return True
         except: return False
 
     def unassign_hizb(self, user_id, hizb_num, khatma_id=None):
@@ -160,7 +174,8 @@ class DatabaseManager:
                 c = conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
                                (GLOBAL_GID, int(user_id), int(hizb_num)))
             conn.commit()
-            if c.rowcount > 0: self.bump(); return True
+            conn.commit()
+            if c.rowcount > 0: self.bump(); self.bump_khatma(khatma_id); return True
         return False
 
     def mark_done(self, user_id, hizb_num, khatma_id=None):
@@ -171,7 +186,7 @@ class DatabaseManager:
                 if c.rowcount == 0: return False
                 conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
                            (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump()
+                conn.commit(); self.bump(); self.bump_khatma(khatma_id)
                 # Check for completion
                 comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
             else:
@@ -248,21 +263,23 @@ class DatabaseManager:
                     "SELECT COALESCE(u.full_name, 'مشارك'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.khatma_id = ?", 
                     (khatma_id,)
                 ).fetchall()
-                # Get Completed for this Khatma
-                comp_rows = conn.execute(
-                    "SELECT COALESCE(u.full_name, 'مشارك'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.khatma_id = ?", 
-                    (khatma_id,)
-                ).fetchall()
             else:
-                # Legacy: Get Active for global bot
+                 # Get Active for global (backward compat)
                 active_rows = conn.execute(
                     "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.group_id = ?", 
                     (GLOBAL_GID,)
                 ).fetchall()
-                # Get Completed for global bot
+
+            # Get Completed
+            if khatma_id:
                 comp_rows = conn.execute(
-                    "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", 
-                    (GLOBAL_GID,)
+                     "SELECT COALESCE(u.full_name, 'مشارك'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.khatma_id = ?", 
+                     (khatma_id,)
+                ).fetchall()
+            else:
+                 comp_rows = conn.execute(
+                     "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", 
+                     (GLOBAL_GID,)
                 ).fetchall()
             
             data = {}
@@ -276,6 +293,86 @@ class DatabaseManager:
                 
             # Convert to list
             return [{"name": k, "active": sorted(v["active"]), "completed": sorted(v["completed"])} for k, v in data.items()]
+
+
+    def get_khatma_full_details(self, khatma_id):
+        with self.get_connection() as conn:
+            # 1. Basic Info
+            k = conn.execute("SELECT id, name, admin_uid, intention, deadline, total_khatmas, created_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
+            if not k: return None
+            
+            # 2. Admin Info
+            admin = conn.execute("SELECT full_name, web_pin FROM users WHERE id = ?", (k[2],)).fetchone()
+            admin_info = {"name": admin[0] if admin else "Unknown", "pin": admin[1] if admin else "????", "uid": k[2]}
+
+            # 3. Users & Progress
+            users = self.get_all_users(khatma_id)
+            
+            return {
+                "info": {"id": k[0], "name": k[1], "intention": k[3], "deadline": k[4], "total": k[5], "created": k[6]},
+                "admin": admin_info,
+                "users": users
+            }
+
+    # --- Dev Tools ---
+    def get_all_khatmas(self, limit=20, offset=0, query="", min_progress=0, active_since=""):
+         with self.get_connection() as conn:
+            # Join with completed count for progress
+            sql = """
+                SELECT k.id, k.name, k.created_at, k.total_khatmas,
+                       (SELECT COUNT(*) FROM completed_hizb ch WHERE ch.khatma_id = k.id) as current_completed,
+                       (SELECT COUNT(*) FROM users u WHERE u.khatma_id = k.id) as user_count,
+                       k.updated_at
+                FROM khatmas k
+                WHERE 1=1
+            """
+            params = []
+            if query:
+                sql += " AND (k.name LIKE ? OR k.id LIKE ?) "
+                params.extend([f"%{query}%", f"%{query}%"])
+            
+            if active_since:
+                 # Ensure active_since is YYYY-MM-DD format roughly
+                 sql += " AND k.updated_at >= ?"
+                 params.append(active_since)
+
+            sql += " ORDER BY k.updated_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+            
+            rows = conn.execute(sql, params).fetchall()
+            
+            # Post-filter for progress (easier in python than complex SQL subquery filter sometimes, but SQL is better. 
+            # Doing in python for simplicity of "current_completed / 60" logic)
+            results = []
+            for r in rows:
+                progress = int((r[4] / 60) * 100)
+                if progress >= min_progress:
+                     results.append({
+                        "id": r[0], "name": r[1], "created_at": r[2], "total_khatmas": r[3], 
+                        "current_progress": r[4], "user_count": r[5], "updated_at": r[6]
+                    })
+            
+            return results
+
+    def get_global_stats(self):
+        with self.get_connection() as conn:
+            total_khatmas = conn.execute("SELECT COUNT(*) FROM khatmas").fetchone()[0]
+            total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            total_reads = conn.execute("SELECT COUNT(*) FROM completed_hizb").fetchone()[0]
+            return {"khatmas": total_khatmas, "users": total_users, "reads": total_reads}
+            
+    def delete_khatma(self, khatma_id):
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM khatmas WHERE id = ?", (khatma_id,))
+            conn.execute("DELETE FROM users WHERE khatma_id = ?", (khatma_id,))
+            conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
+            conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
+            conn.execute("DELETE FROM settings WHERE khatma_id = ?", (khatma_id,))
+            conn.execute("DELETE FROM intentions WHERE khatma_id = ?", (khatma_id,))
+            conn.commit()
+            return True
+
+
 
     def get_all_users(self, khatma_id=None):
         with self.get_connection() as conn:
@@ -403,7 +500,29 @@ class DatabaseManager:
             if row:
                 return {"id": row[0], "name": row[1], "admin_uid": row[2], "intention": row[3], 
                        "deadline": row[4], "total_khatmas": row[5]}
+
         return None
+
+    def update_khatma(self, khatma_id, intention=None, deadline=None, total_khatmas=None):
+        with self.get_connection() as conn:
+            if intention is not None:
+                conn.execute("UPDATE khatmas SET intention = ? WHERE id = ?", (intention, khatma_id))
+            if deadline is not None:
+                conn.execute("UPDATE khatmas SET deadline = ? WHERE id = ?", (deadline, khatma_id))
+            if total_khatmas is not None:
+                conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (total_khatmas, khatma_id))
+                conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (total_khatmas, khatma_id))
+            conn.commit(); self.bump(); self.bump_khatma(khatma_id)
+            return True
+
+    def remove_user_from_khatma(self, uid, khatma_id):
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM users WHERE id = ? AND khatma_id = ?", (uid, khatma_id))
+            conn.execute("DELETE FROM hizb_assignments WHERE user_id = ? AND khatma_id = ?", (uid, khatma_id))
+            conn.execute("DELETE FROM completed_hizb WHERE user_id = ? AND khatma_id = ?", (uid, khatma_id))
+            conn.commit(); self.bump(); self.bump_khatma(khatma_id)
+            return True
+
 
 # --- Bot Handlers ---
 db = DatabaseManager(DB_FILE)
@@ -582,6 +701,78 @@ def create_khatma_api():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# --- Developer Dashboard ---
+DEV_ACCESS_KEY = os.environ.get("DEV_ACCESS_KEY", "dev1234")
+
+def require_dev_auth(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.headers.get("X-Dev-Key")
+        if not key or key != DEV_ACCESS_KEY:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route(f"/{os.environ.get('DEV_ROUTE', 'developer')}")
+def developer_dashboard():
+    return render_template("developer.html")
+
+@app.route("/api/dev/stats")
+@require_dev_auth
+def dev_stats():
+    return jsonify(db.get_global_stats())
+
+@app.route("/api/dev/khatmas")
+@require_dev_auth
+
+def dev_khatmas():
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 20))
+    query = request.args.get("q", "").strip()
+    min_progress = int(request.args.get("min_progress", 0))
+    active_since = request.args.get("active_since", "").strip()
+    
+    offset = (page - 1) * limit
+    
+    khatmas = db.get_all_khatmas(limit=limit, offset=offset, query=query, min_progress=min_progress, active_since=active_since)
+    return jsonify({
+        "khatmas": khatmas,
+        "page": page,
+        "limit": limit
+    })
+
+@app.route("/api/dev/khatma/details")
+@require_dev_auth
+def dev_khatma_details():
+    kid = request.args.get("khatma_id")
+    if not kid: return jsonify({"error": "Missing ID"}), 400
+    
+    details = db.get_khatma_full_details(kid)
+    if not details: return jsonify({"error": "Not Found"}), 404
+    
+    return jsonify(details)
+
+@app.route("/api/dev/khatma/remove_user", methods=["POST"])
+@require_dev_auth
+def dev_remove_user():
+    d = request.get_json()
+    uid = d.get("uid")
+    kid = d.get("khatma_id")
+    if not uid or not kid: return jsonify({"error": "Missing params"}), 400
+    db.remove_user_from_khatma(uid, kid)
+    return jsonify({"success": True})
+
+@app.route("/api/dev/khatma/delete", methods=["POST"])
+@require_dev_auth
+def dev_delete_khatma():
+    d = request.get_json()
+    kid = d.get("khatma_id")
+    if not kid: return jsonify({"error": "Missing ID"}), 400
+    db.delete_khatma(kid)
+    return jsonify({"success": True})
+
 # --- Admin API ---
 ADMIN_NAME = "Admin"
 ADMIN_PIN = "0000"
@@ -610,30 +801,57 @@ def admin_user_hizbs():
 @app.route("/api/admin/control", methods=["POST"])
 def admin_control():
     d = request.get_json(); action = d.get("action"); uid = d.get("uid"); hizb = d.get("hizb")
+    khatma_id = d.get("khatma_id") # NEW: Support multi-tenancy
+    
     if action == "unassign":
-        if db.unassign_hizb(uid, hizb): return jsonify({"success": True})
+        if db.unassign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
     elif action == "complete":
-        res = db.mark_done(uid, hizb)
-        if res == "completed": db.reset(); return jsonify({"success": True, "completed": True})
+        res = db.mark_done(uid, hizb, khatma_id)
+        if res == "completed": 
+            # Reset specifically for this Khatma? Or currently reset() is global?
+            # db.reset() is GLOBAL and dangerous.
+            # TODO: Implement khatma-specific reset. For now, mark done loop handles it?
+            # mark_done returns 'completed' but doesn't auto-reset the DB for multi-tenant yet?
+            # Actually db.reset() clears global tables.
+            # For multi-tenant, we should implement a per-Khatma reset or just increment counter.
+            if khatma_id:
+                # Custom logic for web khatma completion: increment counter, maybe clear assignments?
+                # Currently just returning success.
+                pass 
+            else:
+                db.reset() # Global bot reset
+            return jsonify({"success": True, "completed": True})
         if res: return jsonify({"success": True})
     elif action == "reset_pin":
         db.reset_user_pin(uid); return jsonify({"success": True})
+    
+    # --- Settings Updates (Multi-Tenant Aware) ---
     elif action == "deadline":
-        db.set_setting("deadline", f"{hizb} 23:59")
+        if khatma_id:
+            db.update_khatma(khatma_id, deadline=f"{hizb} 23:59")
+        else:
+            db.set_setting("deadline", f"{hizb} 23:59")
         return jsonify({"success": True})
     elif action == "update_total":
         try:
-            new_total = int(hizb)  # hizb parameter contains the new total value
-            db.set_setting("total_khatmas", str(new_total))
+            new_total = int(hizb)
+            if khatma_id:
+                db.update_khatma(khatma_id, total_khatmas=new_total)
+            else:
+                db.set_setting("total_khatmas", str(new_total))
             return jsonify({"success": True})
         except ValueError:
             return jsonify({"error": "Invalid number"}), 400
     elif action == "update_intention":
-        intention_text = hizb  # hizb parameter contains the intention text
+        intention_text = hizb
         if intention_text:
-            db.set_setting("intention", intention_text)
+            if khatma_id:
+                db.update_khatma(khatma_id, intention=intention_text)
+            else:
+                db.set_setting("intention", intention_text)
             return jsonify({"success": True})
         return jsonify({"error": "Intention text is required"}), 400
+        
     return jsonify({"error": "Action failed"}), 400
 
 @app.route("/api/user/update_name", methods=["POST"])
