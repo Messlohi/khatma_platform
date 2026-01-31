@@ -407,11 +407,14 @@ class DatabaseManager:
 
 # --- Bot Handlers ---
 db = DatabaseManager(DB_FILE)
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ.get("BOT_TOKEN", "8587551117:AAHnsUgMSeqlYRMcRnu4JJkSjC3Lb8cRaGI")
 
 # Only initialize Telegram bot if token is provided
 if TOKEN:
-    req_conf = HTTPXRequest(proxy_url=PROXY_URL, read_timeout=60, connect_timeout=60)
+    req_kwargs = {"read_timeout": 60, "connect_timeout": 60}
+    if PROXY_URL:
+        req_kwargs["proxy_url"] = PROXY_URL
+    req_conf = HTTPXRequest(**req_kwargs)
     application = ApplicationBuilder().token(TOKEN).request(req_conf).build()
 else:
     application = None
