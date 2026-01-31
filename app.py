@@ -175,7 +175,7 @@ class DatabaseManager:
             return False
         with self.get_connection() as conn:
             row = conn.execute("SELECT admin_uid FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
-            return row and int(row[0]) == int(uid)
+            return row and row[0] is not None and int(row[0]) == int(uid)
 
     def assign_hizb(self, user_id, hizb_num, khatma_id=None):
         try:
