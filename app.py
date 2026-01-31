@@ -565,10 +565,12 @@ class DatabaseManager:
             deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
         
         with self.get_connection() as conn:
-            # Create admin user
-            admin_uid = -int(time.time())
-            conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)",
-                        (admin_uid, admin_name, "web_admin", admin_pin, khatma_id))
+            admin_uid = None
+            if admin_name and admin_pin:
+                # Create admin user
+                admin_uid = -int(time.time())
+                conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)",
+                            (admin_uid, admin_name, "web_admin", admin_pin, khatma_id))
             
             # Create khatma
             conn.execute("""INSERT INTO khatmas (id, name, admin_uid, intention, deadline, total_khatmas) 
@@ -775,7 +777,7 @@ def create_khatma_api():
     intention = data.get("intention", "")
     deadline = data.get("deadline")  # NEW: Get deadline from payload
     
-    if not name or not admin_name or not admin_pin:
+    if not name:
         return jsonify({"error": "Missing required fields"}), 400
     
     try:
@@ -890,14 +892,31 @@ def dev_bulk_delete():
     return jsonify({"success": True})
 
 # --- Admin API ---
-ADMIN_NAME = "Admin"
-ADMIN_PIN = "0000"
+# Hardcoded credentials REMOVED
 
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
     d = request.get_json()
-    if d.get("name") == ADMIN_NAME and str(d.get("pin")) == ADMIN_PIN:
-        return jsonify({"success": True})
+    # name = d.get("name") # Only check against DB now
+    # pin = d.get("pin")
+    khatma_id = d.get("khatma_id")
+    
+    # Check against specific khatma admin
+    if khatma_id:
+        k = db.get_khatma(khatma_id)
+        if k and k['admin_uid']:
+             # We need to verify pin logic. The admin login flow typically sends name/pin.
+             # Current implementation in index.html sends name/pin/khatma_id.
+             # We should verify against users table for that khatma, where username='web_admin' usually?
+             # Actually, create_khatma inserts with username='web_admin' and full_name=admin_name.
+             
+             # Let's check users table
+             users = db.get_all_users(khatma_id)
+             for u in users:
+                 if u['id'] == k['admin_uid']:
+                      if str(u.get('web_pin')) == str(d.get("pin")) and u.get('name') == d.get("name"):
+                          return jsonify({"success": True, "uid": u['id'], "is_admin": True})
+
     return jsonify({"error": "بيانات الدخول غير صحيحة"}), 403
 
 @app.route("/api/admin/users")

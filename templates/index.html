@@ -725,6 +725,35 @@
                 document.getElementById('admin-login').classList.remove('hidden');
             }
         }
+
+
+        // Fix: Implement missing shareLink function
+        function shareLink() {
+            const link = document.getElementById('khatma-link').textContent;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Khatma',
+                    text: 'Join our Quran Khatma',
+                    url: link
+                }).catch(err => console.log('Share failed', err));
+            } else {
+                copyLink(); // Fallback
+            }
+        }
+
+        function toggleAdminFields() {
+            const enabled = document.getElementById('enable-admin').checked;
+            const fields = document.getElementById('admin-fields');
+            if (enabled) {
+                fields.classList.remove('hidden');
+                document.getElementById('admin-name').required = true;
+                document.getElementById('admin-pin').required = true;
+            } else {
+                fields.classList.add('hidden');
+                document.getElementById('admin-name').required = false;
+                document.getElementById('admin-pin').required = false;
+            }
+        }
     </script>
 </body>
 
