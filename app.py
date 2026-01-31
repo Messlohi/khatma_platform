@@ -940,17 +940,7 @@ def admin_users():
         
     return jsonify({"users": db.get_all_users(khatma_id)}) 
 
-@app.route("/api/admin/user_hizbs")
-def admin_user_hizbs():
-    admin_uid = request.args.get("admin_uid")
-    target_uid = request.args.get("uid")
-    
-    # We need to find the khatma_id for the target user to verify admin
-    # This might be tricky if target_uid is all we have.
-    # However, the admin panel knows its own context (khatma_id).
-    # Let's require khatma_id param from client for security check.
-    khatma_id = request.args.get("khatma_id")
-    
+
 @app.route("/api/admin/user_hizbs")
 def admin_user_hizbs():
     admin_uid = request.args.get("admin_uid")
