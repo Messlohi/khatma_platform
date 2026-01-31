@@ -1081,7 +1081,7 @@
                     add_dua_title: "إضافة دعاء أو نية",
                     confirm: "تأكيد ✅",
                     header_title: "ختمات القرآن الكريم",
-                    header_sub: "اللهم اجعلها ختمة مباركة في ميزان حسنات والدينا<br><b>يمه (فطوم العلمي)</b> و <b>با (إدريس العلمي)</b><br>اللهم اغفر لهما وارحمهما ونور قبرهما.",
+                    header_sub: "اللهم اجعلها ختمة مباركة في ميزان حسناتنا جميعاً.",
                     name_placeholder: "الاسم الكامل",
                     pin_placeholder: "رمز سري (اختياري) - 4 أرقام",
                     pin_note: "* أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.",
@@ -2303,17 +2303,16 @@
 
             async function shareKhatma() {
                 const shareUrl = window.location.href;
-                //const shareUrl = 'https://bit.ly/khatma-alami';  // Custom Bit.ly short link
                 const shareTitle = document.querySelector('h1[data-t="header_title"]').innerText;
 
                 // Get duaa text from header
                 const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
-                const duaaText = duaaElement ? duaaElement.innerText.replace(/\s+/g, ' ').trim() : '';
+                const duaaText = duaaElement ? duaaElement.innerText.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim() : '';
 
                 // Combine title and duaa for share message
                 const shareText = `🕌 ${shareTitle}\n\n${duaaText}\n\n📖 ${currentLang === 'ar' ? 'شارك معنا في الختمة' : (currentLang === 'fr' ? 'Participez avec nous' : 'Join us in the Khatma')}`;
 
-                // Try native Web Share API (mobile)
+                // Try native Web Share API
                 if (navigator.share) {
                     try {
                         await navigator.share({
@@ -2321,89 +2320,17 @@
                             text: shareText,
                             url: shareUrl
                         });
-                        return;
                     } catch (err) {
-                        // User cancelled or share failed
-                        if (err.name === 'AbortError') {
-                            return; // User cancelled, don't show modal
-                        }
                         console.error('Share failed:', err);
-                        // Fall through to show modal only if it's a real error
                     }
+                } else {
+                    // Fallback to clipboard
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
+                    });
                 }
-
-                // Fallback: Show share options modal
-                const shareOptions = `
-                <div style="text-align: center;">
-                    <h3 style="margin-bottom: 20px;">${currentLang === 'ar' ? '📤 مشاركة الختمة' : (currentLang === 'fr' ? '📤 Partager la Khatma' : '📤 Share Khatma')}</h3>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <button class="btn btn-primary" onclick="shareVia('whatsapp')" style="background: #25D366;">
-                            💬 WhatsApp
-                        </button>
-                        <button class="btn btn-primary" onclick="shareVia('telegram')" style="background: #0088cc;">
-                            ✈️ Telegram
-                        </button>
-                        <button class="btn btn-primary" onclick="shareVia('twitter')" style="background: #1DA1F2;">
-                            🐦 Twitter
-                        </button>
-                        <button class="btn btn-primary" onclick="shareVia('copy')" style="background: var(--secondary);">
-                            📋 ${currentLang === 'ar' ? 'نسخ الرابط' : (currentLang === 'fr' ? 'Copier le lien' : 'Copy Link')}
-                        </button>
-                        <button class="btn btn-outline" onclick="closeShareModal()" style="margin-top: 10px;">
-                            ${currentLang === 'ar' ? 'إغلاق' : (currentLang === 'fr' ? 'Fermer' : 'Close')}
-                        </button>
-                    </div>
-                </div>
-            `;
-
-                // Create and show modal
-                const modal = document.createElement('div');
-                modal.id = 'share-modal';
-                modal.className = 'modal';
-                modal.style.display = 'flex';
-                modal.innerHTML = `<div class="modal-content">${shareOptions}</div>`;
-                document.body.appendChild(modal);
             }
-
-            function shareVia(platform) {
-                const url = encodeURIComponent('https://bit.ly/khatma-alami');  // Custom Bit.ly short link
-
-                // Get title and duaa from header
-                const shareTitle = document.querySelector('h1[data-t="header_title"]').innerText;
-                const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
-                const duaaText = duaaElement ? duaaElement.innerText.replace(/\s+/g, ' ').trim() : '';
-
-                // Combine for share text
-                const fullText = `🕌 ${shareTitle}\n\n${duaaText}\n\n📖 ${currentLang === 'ar' ? 'شارك معنا في الختمة' : (currentLang === 'fr' ? 'Participez avec nous' : 'Join us in the Khatma')}`;
-                const text = encodeURIComponent(fullText);
-
-                let shareUrl;
-                switch (platform) {
-                    case 'whatsapp':
-                        shareUrl = `https://wa.me/?text=${text}%20${url}`;
-                        break;
-                    case 'telegram':
-                        shareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
-                        break;
-                    case 'twitter':
-                        shareUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
-                        break;
-                    case 'copy':
-                        navigator.clipboard.writeText('https://bit.ly/khatma-alami').then(() => {
-                            alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
-                            closeShareModal();
-                        });
-                        return;
-                }
-
-                window.open(shareUrl, '_blank');
-                closeShareModal();
-            }
-
-            function closeShareModal() {
-                const modal = document.getElementById('share-modal');
-                if (modal) modal.remove();
-            }
+            // Removed redundant shareVia and closeShareModal functions
 
             function openEditNameModal() {
                 const modal = document.getElementById('edit-name-modal');
