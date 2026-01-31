@@ -1048,6 +1048,24 @@ def manifest():
 def sw():
     return Response("self.addEventListener('fetch', function(event) {});", mimetype="application/javascript")
 
+@app.route("/robots.txt")
+def robots():
+    return Response("User-agent: *\nAllow: /", mimetype="text/plain")
+
+@app.route("/sitemap.xml")
+def sitemap():
+    # Basic sitemap listing the homepage
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://khatamat.online/</loc>
+    <lastmod>{date}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>""".format(date=datetime.date.today().isoformat())
+    return Response(xml, mimetype="application/xml")
+
 @app.route("/api/khatma")
 def api_status():
     try:
