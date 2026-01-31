@@ -1436,6 +1436,31 @@
                 }
             }
 
+            function isMyCompleted(i) {
+                if (!window.hizbData || !window.hizbData.participants) return false;
+                const myUid = localStorage.getItem('webUserUid');
+                if (!myUid) return false;
+                const me = window.hizbData.participants.find(p => String(p.id) === String(myUid));
+                return me && me.completed && me.completed.includes(i);
+            }
+
+            function undoCompletePrompt(i) {
+                customConfirm(
+                    currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`),
+                    () => {
+                        const myUid = localStorage.getItem('webUserUid');
+                        fetch('/api/undo_complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: getKhatmaIdFromUrl() })
+                        }).then(res => res.json()).then(d => {
+                            if (d.success) refreshData();
+                            else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
+                        });
+                    }
+                );
+            }
+
             function renderList() {
                 const list = document.getElementById('hizb-list');
                 list.innerHTML = '';
@@ -1527,7 +1552,13 @@
 
                     // Add click handlers
                     if (!isAvailable && !isActive) {
-                        item.style.cursor = 'default';
+                        item.classList.add('completed'); // Ensure class is added
+                        if (isMyCompleted(i)) {
+                            item.style.cursor = 'pointer';
+                            item.onclick = () => undoCompletePrompt(i);
+                        } else {
+                            item.style.cursor = 'default';
+                        }
                     } else if (isMine) {
                         item.style.cursor = 'pointer';
                         item.onclick = () => openActionModal(i);
@@ -1705,6 +1736,10 @@
 
                     if (!isAvailable && !isActive) {
                         btn.classList.add('completed');
+                        if (isMyCompleted(i)) {
+                            btn.style.cursor = 'pointer';
+                            btn.onclick = () => undoCompletePrompt(i);
+                        }
                     } else if (isMine) {
                         btn.classList.add('my-hizb');
                         btn.onclick = () => openActionModal(i);

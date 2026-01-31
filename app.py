@@ -200,6 +200,37 @@ class DatabaseManager:
             
             return "completed" if comp_count >= 60 else True
 
+    def undo_completion(self, user_id, hizb_num, khatma_id=None):
+        with self.get_connection() as conn:
+            # Check if actually completed by this user
+            if khatma_id:
+                c = conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
+                               (khatma_id, int(user_id), int(hizb_num)))
+            else:
+                c = conn.execute("DELETE FROM completed_hizb WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
+                               (GLOBAL_GID, int(user_id), int(hizb_num)))
+            
+            if c.rowcount > 0:
+                # Move back to assignments
+                if khatma_id:
+                    conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
+                               (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
+                    # Also update total_khatmas if it was incremented? 
+                    # Actually if we undo, we might need to decrement total if it was *just* completed?
+                    # But the total increments on the *transition* to 60. 
+                    # If we undo, and the count drops below 60, we don't necessarily decrement "total_khatmas" (history).
+                    # We just assume the current round is now incomplete.
+                    # Since mark_done increments total_khatmas and clears the board, "Undoing" the *last* hizb is tricky because the board is cleared!
+                    # If the board was cleared, the user doesn't "own" the completed hizb anymore (it's gone).
+                    # So "Undo" only works for hizbs that are currently in the `completed_hizb` table (i.e. the round is NOT finished yet).
+                    # This is correct behavior. If round finished, it's too late to undo specific hizb (it's history).
+                    self.bump_khatma(khatma_id)
+                else:
+                    conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number) VALUES (?, ?, ?)", 
+                               (GLOBAL_GID, int(user_id), int(hizb_num)))
+                conn.commit(); self.bump(); return True
+            return False
+
     def mark_all_done(self, user_id):
         with self.get_connection() as conn:
             hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
@@ -1108,6 +1139,14 @@ def api_done_all():
         return jsonify({"success": True, "completed": True})
     if res: return jsonify({"success": True})
     return jsonify({"error": "لا يوجد أحزاب لإتمامها"}), 400
+
+@app.route("/api/undo_complete", methods=["POST"])
+def api_undo_complete():
+    d = request.get_json(); ur = d.get("uid")
+    uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+    khatma_id = d.get("khatma_id")
+    if db.undo_completion(uid, int(d.get("hizb")), khatma_id): return jsonify({"success": True})
+    return jsonify({"error": "فشل"}), 400
 
 @app.route("/api/return", methods=["POST"])
 def api_return():
