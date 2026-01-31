@@ -414,7 +414,15 @@ if TOKEN:
     req_kwargs = {"read_timeout": 60, "connect_timeout": 60}
     if PROXY_URL:
         req_kwargs["proxy_url"] = PROXY_URL
-    req_conf = HTTPXRequest(**req_kwargs)
+    
+    try:
+        req_conf = HTTPXRequest(**req_kwargs)
+    except TypeError:
+        # Fallback: remove proxy_url if rejected (e.g., incompatible version)
+        if "proxy_url" in req_kwargs:
+            del req_kwargs["proxy_url"]
+        req_conf = HTTPXRequest(**req_kwargs)
+        print("⚠️ Warning: HTTPXRequest rejected proxy_url. Chat bot might not work on PA.")
     application = ApplicationBuilder().token(TOKEN).request(req_conf).build()
 else:
     application = None
