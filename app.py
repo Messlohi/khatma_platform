@@ -921,22 +921,38 @@ def admin_login():
 
 @app.route("/api/admin/users")
 def admin_users():
+    uid = request.args.get("uid")
     khatma_id = request.args.get("khatma_id")
+    
+    if not db.is_admin(uid, khatma_id):
+        return jsonify({"error": "Unauthorized"}), 403
+        
     return jsonify({"users": db.get_all_users(khatma_id)}) 
-
-
-
 
 @app.route("/api/admin/user_hizbs")
 def admin_user_hizbs():
-    uid = request.args.get("uid")
-    if not uid: return jsonify({"error": "UID missing"}), 400
-    return jsonify({"hizbs": db.get_user_hizbs(uid)})
+    admin_uid = request.args.get("admin_uid")
+    target_uid = request.args.get("uid")
+    
+    # We need to find the khatma_id for the target user to verify admin
+    # This might be tricky if target_uid is all we have.
+    # However, the admin panel knows its own context (khatma_id).
+    # Let's require khatma_id param from client for security check.
+    khatma_id = request.args.get("khatma_id")
+    
+    if not db.is_admin(admin_uid, khatma_id):
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    return jsonify({"hizbs": db.get_user_hizbs(target_uid)})
 
 @app.route("/api/admin/control", methods=["POST"])
 def admin_control():
     d = request.get_json(); action = d.get("action"); uid = d.get("uid"); hizb = d.get("hizb")
     khatma_id = d.get("khatma_id") # NEW: Support multi-tenancy
+    admin_uid = d.get("admin_uid") # NEW: Security check
+    
+    if not db.is_admin(admin_uid, khatma_id):
+        return jsonify({"error": "Unauthorized"}), 403
     
     if action == "unassign":
         if db.unassign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
