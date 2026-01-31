@@ -1,10 +1,13 @@
 // Khatma Dashboard Core Logic using i18n & utils
 
-// Initialize variables (khatmaId must be defined in HTML or fetched)
-// Initialize variables (khatmaId must be defined in HTML or fetched)
-// khatmaId is defined as a global in khatma.html
-if (typeof khatmaId === 'undefined') {
-    console.error("khatmaId is undefined!");
+// Initialize variables
+// Robust ID extraction
+let effectiveKhatmaId = null;
+if (typeof khatmaId !== 'undefined' && khatmaId) {
+    effectiveKhatmaId = khatmaId;
+} else {
+    const pathParts = window.location.pathname.split('/').filter(p => p);
+    effectiveKhatmaId = pathParts[pathParts.length - 1];
 }
 
 var currentHizb = null;
@@ -78,7 +81,7 @@ function undoCompletePrompt(i) {
             fetch('/api/undo_complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: webUserUid, hizb: i, khatma_id: khatmaId })
+                body: JSON.stringify({ uid: webUserUid, hizb: i, khatma_id: effectiveKhatmaId })
             }).then(res => res.json()).then(d => {
                 if (d.success) fetchStatus().then(() => { renderGrid(); renderParticipants(); }); // Refresh
                 else customAlert(t('undo_failed'));
@@ -270,8 +273,10 @@ async function renderGrid() {
 }
 
 async function fetchStatus() {
+    if (!effectiveKhatmaId) return;
+
     try {
-        const response = await fetch(`/api/status/${khatmaId}`);
+        const response = await fetch(`/api/status/${effectiveKhatmaId}`);
         const data = await response.json();
 
         if (data.error) {
@@ -327,7 +332,7 @@ async function fetchStatus() {
         }
 
         // Check if admin
-        const isAdmin = localStorage.getItem('is_admin') === 'true' && localStorage.getItem('admin_khatma_id') === khatmaId;
+        const isAdmin = localStorage.getItem('is_admin') === 'true' && localStorage.getItem('admin_khatma_id') === effectiveKhatmaId;
         if (isAdmin) {
             document.getElementById('admin-badge').style.display = 'block';
         } else {
@@ -428,7 +433,7 @@ async function addDua() {
         const res = await fetch('/api/dua/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ khatma_id: khatmaId, uid: webUserUid, name: webUserName, text: text })
+            body: JSON.stringify({ khatma_id: effectiveKhatmaId, uid: webUserUid, name: webUserName, text: text })
         });
         const data = await res.json();
         if (data.success) {
@@ -448,7 +453,7 @@ async function deleteDua(index) {
         const res = await fetch('/api/dua/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ khatma_id: khatmaId, index: index, uid: webUserUid })
+            body: JSON.stringify({ khatma_id: effectiveKhatmaId, index: index, uid: webUserUid })
         });
         if ((await res.json()).success) fetchStatus();
     } catch (e) { console.error(e); }
@@ -493,20 +498,11 @@ async function joinHizb() {
         await joinHizbAction(currentHizb, name, pin, webUserUid); // Pass uid if known, or it will be created
     } else {
         // Just login/register
-        // Verify user existence or create
-        // We can use a dummy endpoint or just save locally if we trust client (we shouldn't)
-        // Let's use get_user logic via dry-run join or similar? 
-        // Or simpler: just save to local storage and refresh.
-        // Actually, backend creates user on first assignment. 
-        // For pure login, we might need a distinct flow. 
-        // Current logic: store locally, user is created when they do something.
         webUserName = name;
         webUserPin = pin;
         localStorage.setItem('web_user_name', name);
         localStorage.setItem('web_user_pin', pin);
 
-        // If we want to persist user on server without assignment, we need an endpoint.
-        // For now, let's just update UI.
         closeModal();
         fetchStatus();
     }
@@ -522,7 +518,7 @@ async function joinHizbAction(hizb, name, pin, uid) {
                 hizb: hizb,
                 name: name,
                 pin: pin,
-                khatma_id: khatmaId,
+                khatma_id: effectiveKhatmaId,
                 uid: uid
             })
         });
@@ -537,7 +533,7 @@ async function joinHizbAction(hizb, name, pin, uid) {
             localStorage.setItem('web_user_name', name);
             localStorage.setItem('web_user_pin', pin);
             localStorage.setItem('web_user_uid', data.uid);
-            localStorage.setItem('khatma_id_' + khatmaId + '_uid', data.uid); // Scoped
+            localStorage.setItem('khatma_id_' + effectiveKhatmaId + '_uid', data.uid); // Scoped
 
             // Update local assignments
             if (!myAssignments.includes(hizb)) {
@@ -570,9 +566,6 @@ function openActionModal(hizb) {
     const modal = document.getElementById('action-modal');
     document.getElementById('action-title').innerText = t('manage_hizb') + ` ${hizb}`;
 
-    // Show "Done All" if user has > 1 active hizb
-    // ... logic for done-all button visibility ...
-
     modal.style.display = 'flex';
 }
 
@@ -583,7 +576,7 @@ function readHizb() {
 async function markDone() {
     showLoading(true);
     try {
-        const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
+        const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: effectiveKhatmaId }) });
         const data = await res.json();
         if (data.success) {
             if (data.completed) customAlert(t('alert_khatma_completed'), '🎉');
@@ -613,7 +606,7 @@ async function returnHizb() {
     if (!confirmed) return;
     showLoading(true);
     try {
-        const res = await fetch('/api/return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
+        const res = await fetch('/api/return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: effectiveKhatmaId }) });
         const data = await res.json();
         if (data.success) { closeModal(); await init(); }
         else { showLoading(false); customAlert(data.error || t('error_generic'), '❌'); }
@@ -750,9 +743,9 @@ function closeAdmin() {
 }
 
 async function adminLoadUsers() {
-    if (!khatmaId) return;
+    if (!effectiveKhatmaId) return;
     try {
-        const res = await fetch(`/api/khatma/${khatmaId}/users`);
+        const res = await fetch(`/api/khatma/${effectiveKhatmaId}/users`);
         // Note: we might need admin auth header or just pin in body for secure endpoints, 
         // but this endpoint might be public-ish or we rely on backend check.
         // Assuming public read-only of user names is fine, but for full details? 
@@ -833,7 +826,7 @@ async function adminAction(action, targetUid) {
             body: JSON.stringify({
                 admin_name: adminName,
                 admin_pin: adminPin,
-                active_khatma_id: khatmaId,
+                active_khatma_id: effectiveKhatmaId,
                 action: action,
                 target_uid: targetUid
             })
@@ -853,8 +846,6 @@ async function adminAction(action, targetUid) {
 }
 
 async function adminEditUserName(uid, currentName) {
-    // using prompt for input, not customAlert/Confirm. 
-    // We can use native prompt because customPrompt is not implemented in utils.js yet.
     const newName = prompt(t('prompt_update_name', { name: currentName }), currentName); // Native prompt
     if (!newName || newName.trim() === '' || newName === currentName) return;
 
@@ -894,18 +885,6 @@ async function adminSetDeadline() {
     if (!await customConfirm(t('confirm_change_date', { date: date }))) return;
 
     showLoading(true);
-    // Call API (reuse admin_control or specific endpoint? Plan said admin_control handling)
-    // Actually, createKhatma allows setting deadline. Update? 
-    // We need an endpoint for updating deadline.
-    // Assuming /api/khatma/update or similar was implemented?
-    // Let's assume admin_control handled it or we use generic update.
-    // Based on previous logs, we didn't explicitly build an 'update_deadline' endpoint, 
-    // but we can assume one exists or default to not implementing if unsure? 
-    // Wait, the task says "Add deadline parameter to Khatma creation API". 
-    // Did we add update logic? 
-    // If not, I should implement it or skip.
-    // The previous code had `adminSetDeadline`. Let's assume it works or uses `admin_control`.
-    // It likely uses `/api/admin/update_deadline` or similar. I'll assume `/api/khatma/update`.
 
     const adminName = localStorage.getItem('web_user_name');
     const adminPin = localStorage.getItem('web_user_pin');
@@ -917,7 +896,7 @@ async function adminSetDeadline() {
             body: JSON.stringify({
                 admin_name: adminName,
                 admin_pin: adminPin,
-                active_khatma_id: khatmaId,
+                active_khatma_id: effectiveKhatmaId,
                 action: 'update_deadline',
                 value: date
             })
@@ -945,7 +924,7 @@ async function adminUpdateTotalKhatmas() {
             body: JSON.stringify({
                 admin_name: adminName,
                 admin_pin: adminPin,
-                active_khatma_id: khatmaId,
+                active_khatma_id: effectiveKhatmaId,
                 action: 'update_total',
                 value: count
             })
@@ -970,7 +949,7 @@ async function adminUpdateIntention() {
             body: JSON.stringify({
                 admin_name: adminName,
                 admin_pin: adminPin,
-                active_khatma_id: khatmaId,
+                active_khatma_id: effectiveKhatmaId,
                 action: 'update_intention',
                 value: text
             })
@@ -1030,7 +1009,7 @@ function updateTimer() {
 
 async function init() {
     updateUI(); // First render with current Lang
-    if (khatmaId) {
+    if (effectiveKhatmaId) {
         await fetchStatus();
     }
     checkPWAOnboarding();
@@ -1041,8 +1020,6 @@ setTimeout(() => {
     // Wait for utils/i18n to load if async? They are blocking subscripts in HTML.
     init();
 }, 100);
-
-// Logic mostly done.
 
 // PWA Logic (keep as is)
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -1061,7 +1038,6 @@ async function installPWA() {
     } else {
         const instr = document.getElementById('pwa-instructions');
         if (instr) instr.style.display = 'block';
-        // ...
     }
 }
 
