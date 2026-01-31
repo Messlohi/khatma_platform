@@ -91,6 +91,28 @@ class DatabaseManager:
             c.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT, value TEXT, khatma_id TEXT, PRIMARY KEY (key, khatma_id))')
             c.execute('CREATE TABLE IF NOT EXISTS intentions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, text TEXT, timestamp REAL, khatma_id TEXT)')
             
+            # --- Migrations for existing tables ---
+            try:
+                c.execute("ALTER TABLE users ADD COLUMN khatma_id TEXT")
+            except: pass
+            
+            try:
+                c.execute("ALTER TABLE hizb_assignments ADD COLUMN khatma_id TEXT")
+            except: pass
+            
+            try:
+                c.execute("ALTER TABLE completed_hizb ADD COLUMN khatma_id TEXT")
+            except: pass
+            
+            try:
+                c.execute("ALTER TABLE settings ADD COLUMN khatma_id TEXT")
+            except: pass
+            
+            try:
+                c.execute("ALTER TABLE intentions ADD COLUMN khatma_id TEXT")
+            except: pass
+            # --------------------------------------
+
             # Initialize Global State (for Telegram bot backward compatibility)
             c.execute("INSERT OR IGNORE INTO groups (id, title, last_update) VALUES (?, ?, ?)", (GLOBAL_GID, "Main Khatma", time.time()))
             
@@ -158,12 +180,12 @@ class DatabaseManager:
     def assign_hizb(self, user_id, hizb_num, khatma_id=None):
         try:
             with self.get_connection() as conn:
-                conn.execute("INSERT INTO hizb_assignments VALUES (?, ?, ?, ?)", 
+                conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
                            (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
-                conn.execute("INSERT INTO hizb_assignments VALUES (?, ?, ?, ?)", 
-                           (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump(); self.bump_khatma(khatma_id); return True
-        except: return False
+                conn.commit(); self.bump_khatma(khatma_id); self.bump(); return True
+        except Exception as e:
+            print(f"DEBUG: assign_hizb failed: {e}")
+            return False
 
     def unassign_hizb(self, user_id, hizb_num, khatma_id=None):
         with self.get_connection() as conn:

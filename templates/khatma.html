@@ -2026,7 +2026,7 @@
                             webUserName = "Admin"; webUserUid = "admin"; webUserPin = pin;
                             localStorage.setItem('web_user_uid', 'admin'); localStorage.setItem('web_user_name', 'Admin'); localStorage.setItem('web_user_pin', pin);
                             closeModal(); await init(); return;
-                        } else { await customAlert(data.error, '', '❌'); showLoading(false); return; }
+                        } else { showLoading(false); await customAlert(data.error, '', '❌'); return; }
                     }
 
                     const body = { name, pin };
@@ -2053,8 +2053,8 @@
 
                         closeModal(); await init();
                         if (currentHizb) openReadPrompt();
-                    } else { await customAlert(data.error, '', '❌'); showLoading(false); }
-                } catch (e) { await customAlert('خطأ في الاتصال', '', '❌'); showLoading(false); }
+                    } else { showLoading(false); await customAlert(data.error, '', '❌'); }
+                } catch (e) { showLoading(false); await customAlert('خطأ في الاتصال', '', '❌'); }
             }
 
             function handleLoginClick() {
@@ -2287,8 +2287,8 @@
                         if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
                         closeModal(); await init();
                     }
-                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
-                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
+                    else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+                } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
             }
 
             async function markAllDone() {
@@ -2302,8 +2302,8 @@
                         if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
                         closeModal(); await init();
                     }
-                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
-                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
+                    else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+                } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
             }
 
             async function returnHizb() {
@@ -2314,8 +2314,8 @@
                     const res = await fetch('/api/return', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) { closeModal(); await init(); }
-                    else { alert(data.error || i18n[currentLang].error_generic); showLoading(false); }
-                } catch (e) { alert(i18n[currentLang].alert_connection_error); showLoading(false); }
+                    else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
+                } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
             }
 
             async function checkUpdates() {
