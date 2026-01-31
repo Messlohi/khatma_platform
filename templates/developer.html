@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Developer Dashboard v4 | Khatma Platform</title>
+    <title>Developer Dashboard v5 | Khatma Platform</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
@@ -18,6 +18,8 @@
             --text: #f8fafc;
             --text-muted: #94a3b8;
             --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
 
         body {
@@ -214,26 +216,73 @@
             margin-right: 5px;
         }
 
-        .loading-marker {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-muted);
-            display: none;
+        /* Grid for Hizbs */
+        .hizb-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            margin-top: 10px;
         }
 
-        .loading-marker.visible {
-            display: block;
+        .hizb-cell {
+            aspect-ratio: 1;
+            background: #334155;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .hizb-cell:hover {
+            border: 1px solid white;
+        }
+
+        .hizb-cell.status-active {
+            background: var(--warning);
+            color: #FFF;
+        }
+
+        .hizb-cell.status-completed {
+            background: var(--success);
+            color: #FFF;
+        }
+
+        /* Checkbox */
+        .select-check {
+            transform: scale(1.5);
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* Batch Bar */
+        #batch-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 15px 30px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 99;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
 
 <body>
-
     <div id="login-screen">
         <div class="login-box">
-            <h2 style="font-family:'Unbounded'; color:var(--primary);">Dev Console</h2>
-            <input type="password" id="dev-key" placeholder="Access Key" onkeyup="if(event.key === 'Enter') login()">
-            <button onclick="login()">Login</button>
+            <h2 style="font-family:'Unbounded'; color:var(--primary);">Dev Console</h2><input type="password"
+                id="dev-key" placeholder="Access Key" onkeyup="if(event.key === 'Enter') login()"><button
+                onclick="login()">Login</button>
             <p id="error-msg" style="color: var(--damage); margin-top: 10px;" class="hidden"></p>
         </div>
     </div>
@@ -242,7 +291,7 @@
         <header class="header">
             <div class="brand">🚀 Khatma Platform <span
                     style="font-size: 0.8rem; border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px;">DEV
-                    v4.0</span></div>
+                    v5.0</span></div>
             <button class="btn-sm" onclick="logout()" style="width:auto;">Logout</button>
         </header>
 
@@ -263,22 +312,14 @@
 
         <div class="content">
             <div class="filters">
-                <div style="flex: 1; min-width: 200px;">
-                    <label>Search</label>
-                    <input type="text" id="search-input" placeholder="ID or Name..."
-                        onkeyup="if(event.key==='Enter') resetAndFetch()" style="margin:0;">
+                <div style="flex: 1; min-width: 200px;"><label>Search</label><input type="text" id="search-input"
+                        placeholder="ID or Name..." onkeyup="if(event.key==='Enter') resetAndFetch()" style="margin:0;">
                 </div>
-                <div>
-                    <label>Min Progress %</label>
-                    <input type="number" id="filter-progress" placeholder="e.g. 50"
+                <div><label>Min Progress %</label><input type="number" id="filter-progress" placeholder="e.g. 50"
                         onkeyup="if(event.key==='Enter') resetAndFetch()"
-                        style="margin:0; width: 100px; text-align: center;">
-                </div>
-                <div>
-                    <label>Active Since</label>
-                    <input type="date" id="filter-date" onchange="resetAndFetch()"
-                        style="margin:0; width: auto; color-scheme: dark;">
-                </div>
+                        style="margin:0; width: 100px; text-align: center;"></div>
+                <div><label>Active Since</label><input type="date" id="filter-date" onchange="resetAndFetch()"
+                        style="margin:0; width: auto; color-scheme: dark;"></div>
                 <button class="btn-sm" onclick="resetAndFetch()" style="width: auto;">⚡ Apply</button>
             </div>
 
@@ -286,6 +327,8 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="select-all" class="select-check"
+                                    onclick="toggleSelectAll()"></th>
                             <th>ID</th>
                             <th>Name</th>
                             <th>Users</th>
@@ -298,12 +341,16 @@
                 </table>
             </div>
 
-            <div id="loading-marker" class="loading-marker">
-                ⏳ Loading more...
-            </div>
-            <div id="end-marker" class="loading-marker" style="font-size: 0.8rem;">
-                No more results
-            </div>
+            <div id="loading-marker" style="text-align: center; padding: 20px; display: none;">⏳ Loading more...</div>
+            <div id="end-marker" style="text-align: center; padding: 20px; font-size: 0.8rem; display: none;">No more
+                results</div>
+        </div>
+
+        <div id="batch-bar" class="hidden">
+            <span id="batch-count" style="font-weight: 600;">0 Selected</span>
+            <button class="btn-sm btn-danger" onclick="batchDelete()">🗑️ Delete Selected</button>
+            <button class="btn-sm" onclick="clearSelection()"
+                style="background:transparent; border:1px solid #555;">Cancel</button>
         </div>
     </div>
 
@@ -311,41 +358,69 @@
     <div id="details-modal" class="hidden"
         style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100;">
         <div
-            style="background: var(--surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border); width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            style="background: var(--surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border); width: 95%; max-width: 1000px; max-height: 95vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                 <h2 style="margin: 0;" id="detail-title">Details</h2>
                 <button onclick="closeModal()"
                     style="background: none; border: none; font-size: 2rem; color: var(--text-muted); cursor: pointer; width: auto; padding: 0;">&times;</button>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+                <!-- Left: Settings -->
                 <div>
                     <h4
                         style="color: var(--primary); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                         ⚙️ Settings</h4>
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Khatma Name</label>
-                    <input type="text" id="edit-name" disabled style="opacity:0.6;">
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Admin Info</label>
+                    <label>Admin PIN (Master Key)</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" id="edit-admin-name" disabled style="opacity:0.6;">
-                        <input type="text" id="edit-admin-pin" disabled
-                            style="width:80px; text-align:center; opacity:0.6;">
+                        <input type="text" id="edit-admin-pin" style="text-align:center;">
+                        <button class="btn-sm" onclick="saveAdminPin()">Update</button>
                     </div>
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Intention</label>
+                    <label>Intention</label>
                     <textarea id="edit-intention" rows="3"></textarea>
                     <button class="btn-sm" onclick="saveSetting('intention')"
                         style="margin-bottom:15px;">Update</button>
-                    <label style="color:var(--text-muted); font-size:0.8rem;">Deadline</label>
+                    <label>Deadline</label>
                     <div style="display:flex; gap:10px;">
                         <input type="date" id="edit-deadline" style="color-scheme:dark;">
                         <button class="btn-sm" onclick="saveSetting('deadline')">Set</button>
                     </div>
+
+                    <h4
+                        style="color: var(--primary); margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                        🛑 Danger Zone</h4>
+                    <button class="btn-sm" onclick="resetKhatma()"
+                        style="background:var(--warning); color:black; margin-bottom:10px;">🔄 Reset Progress</button>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">Clears all current assignments and
+                        completions. Users remain.</div>
                 </div>
+
+                <!-- Right: Visualization & Users -->
                 <div>
                     <h4
                         style="color: var(--primary); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                        📊 Hizb Status</h4>
+                    <div id="hizb-grid" class="hizb-grid"></div>
+                    <div
+                        style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">
+                        <span style="display:flex; align-items:center; gap:5px;">
+                            <div style="width:10px; height:10px; background:#334155; border-radius:2px;"></div>
+                            Available
+                        </span>
+                        <span style="display:flex; align-items:center; gap:5px;">
+                            <div style="width:10px; height:10px; background:var(--warning); border-radius:2px;"></div>
+                            Taken
+                        </span>
+                        <span style="display:flex; align-items:center; gap:5px;">
+                            <div style="width:10px; height:10px; background:var(--success); border-radius:2px;"></div>
+                            Completed
+                        </span>
+                    </div>
+
+                    <h4
+                        style="color: var(--primary); margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                         👥 User Management</h4>
                     <div
-                        style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; height: 400px; overflow-y: auto; padding: 10px;">
+                        style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; height: 300px; overflow-y: auto; padding: 10px;">
                         <ul id="user-list" style="list-style: none; padding: 0; margin: 0;"></ul>
                     </div>
                 </div>
@@ -355,11 +430,10 @@
 
     <script>
         let devKey = localStorage.getItem('dev_key');
-        let currentPage = 1;
-        let limit = 20;
-        let currentKhatmaId = null;
-        let isLoading = false;
-        let hasMore = true;
+        let currentPage = 1; let limit = 20;
+        let currentKhatmaId = null; let currentAdminUid = null;
+        let isLoading = false; let hasMore = true;
+        let selectedKhatmas = new Set();
 
         if (devKey) { login(true); }
 
@@ -372,151 +446,148 @@
                     devKey = key; localStorage.setItem('dev_key', key);
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('dashboard').classList.remove('hidden');
-                    const stats = await res.json();
-                    renderStats(stats);
-                    resetAndFetch();
-
-                    // Setup Infinite Scroll
+                    renderStats(await res.json()); resetAndFetch();
                     window.addEventListener('scroll', handleScroll);
-                } else if (!auto) {
-                    document.getElementById('error-msg').innerText = "Invalid Key";
-                    document.getElementById('error-msg').classList.remove('hidden');
-                } else { logout(); }
+                } else if (!auto) { document.getElementById('error-msg').innerText = "Invalid Key"; document.getElementById('error-msg').classList.remove('hidden'); } else { logout(); }
             } catch (e) { alert("Connection failed"); }
         }
-
         function logout() { localStorage.removeItem('dev_key'); location.reload(); }
         function renderStats(s) { document.getElementById('stat-khatmas').innerText = s.khatmas; document.getElementById('stat-users').innerText = s.users; document.getElementById('stat-reads').innerText = s.reads; }
 
-        function handleScroll() {
-            if (isLoading || !hasMore) return;
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-                currentPage++;
-                fetchData(true);
-            }
-        }
-
-        function resetAndFetch() {
-            currentPage = 1;
-            hasMore = true;
-            document.getElementById('khatma-table').innerHTML = '';
-            document.getElementById('end-marker').classList.remove('visible');
-            fetchData(false);
-        }
+        function handleScroll() { if (isLoading || !hasMore) return; if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) { currentPage++; fetchData(true); } }
+        function resetAndFetch() { currentPage = 1; hasMore = true; document.getElementById('khatma-table').innerHTML = ''; document.getElementById('end-marker').style.display = 'none'; fetchData(false); }
 
         async function fetchData(append = false) {
-            if (isLoading) return;
-            isLoading = true;
-            document.getElementById('loading-marker').classList.add('visible');
-
-            const q = document.getElementById('search-input').value;
-            const minP = document.getElementById('filter-progress').value || 0;
-            const date = document.getElementById('filter-date').value || '';
-
-            const url = `/api/dev/khatmas?page=${currentPage}&limit=${limit}&q=${encodeURIComponent(q)}&min_progress=${minP}&active_since=${date}`;
-
+            if (isLoading) return; isLoading = true; document.getElementById('loading-marker').style.display = 'block';
+            const url = `/api/dev/khatmas?page=${currentPage}&limit=${limit}&q=${encodeURIComponent(document.getElementById('search-input').value)}&min_progress=${document.getElementById('filter-progress').value || 0}&active_since=${document.getElementById('filter-date').value || ''}`;
             try {
                 const res = await fetch(url, { headers: { 'X-Dev-Key': devKey } });
                 const data = await res.json();
-
                 const tbody = document.getElementById('khatma-table');
-
-                if (data.khatmas.length < limit) {
-                    hasMore = false;
-                    document.getElementById('end-marker').innerText = data.khatmas.length === 0 && !append ? "No matches found" : "End of results";
-                    document.getElementById('end-marker').classList.add('visible');
-                } else {
-                    document.getElementById('end-marker').classList.remove('visible');
-                }
-
+                if (data.khatmas.length < limit) { hasMore = false; document.getElementById('end-marker').style.display = 'block'; }
                 data.khatmas.forEach(k => {
                     const tr = document.createElement('tr');
                     const progress = Math.round((k.current_progress / 60) * 100);
-                    const updated = k.updated_at ? k.updated_at.split(' ')[0] : k.created_at.split(' ')[0];
                     tr.innerHTML = `
-                        <td style="font-family: monospace; color: var(--primary); cursor: pointer;" onclick="openDetails('${k.id}')">${k.id}</td>
-                        <td onclick="openDetails('${k.id}')" style="cursor: pointer;"><strong>${k.name}</strong></td>
+                        <td><input type="checkbox" class="select-check" onchange="toggleSelect('${k.id}', this)" ${selectedKhatmas.has(k.id) ? 'checked' : ''}></td>
+                        <td style="font-family:monospace; color:var(--primary); cursor:pointer;" onclick="openDetails('${k.id}')">${k.id}</td>
+                        <td onclick="openDetails('${k.id}')" style="cursor:pointer;"><strong>${k.name}</strong></td>
                         <td style="text-align:center;">${k.user_count}</td>
-                        <td style="color: var(--text-muted); font-size: 0.85rem;">${updated}</td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>
-                                <span style="font-size: 0.8rem;">${progress}%</span>
-                            </div>
-                        </td>
+                        <td style="color:var(--text-muted); font-size:0.85rem;">${k.updated_at ? k.updated_at.split(' ')[0] : k.created_at.split(' ')[0]}</td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div></td>
                         <td><button class="btn-sm btn-danger" onclick="deleteKhatma('${k.id}', '${k.name.replace(/'/g, "\\'")}')">🗑️</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (e) { console.error(e); }
-
-            isLoading = false;
-            document.getElementById('loading-marker').classList.remove('visible');
+            } catch (e) { }
+            isLoading = false; document.getElementById('loading-marker').style.display = 'none';
         }
 
-        function closeModal() { document.getElementById('details-modal').style.display = 'none'; }
+        // --- Batch selection ---
+        function toggleSelect(id, box) { if (box.checked) selectedKhatmas.add(id); else selectedKhatmas.delete(id); updateBatchBar(); }
+        function toggleSelectAll() {
+            const all = document.querySelectorAll('#khatma-table .select-check');
+            const master = document.getElementById('select-all').checked;
+            all.forEach(c => { c.checked = master; if (master) selectedKhatmas.add(c.parentElement.parentElement.children[1].innerText); else selectedKhatmas.clear(); });
+            updateBatchBar();
+        }
+        function updateBatchBar() {
+            const bar = document.getElementById('batch-bar');
+            document.getElementById('batch-count').innerText = `${selectedKhatmas.size} Selected`;
+            if (selectedKhatmas.size > 0) bar.classList.remove('hidden'); else bar.classList.add('hidden');
+        }
+        function clearSelection() { selectedKhatmas.clear(); document.getElementById('select-all').checked = false; const all = document.querySelectorAll('.select-check'); all.forEach(c => c.checked = false); updateBatchBar(); }
+        async function batchDelete() {
+            if (!confirm(`Delete ${selectedKhatmas.size} khatmas? This cannot be undone.`)) return;
+            await fetch('/api/dev/khatmas/bulk_delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey }, body: JSON.stringify({ ids: Array.from(selectedKhatmas) }) });
+            clearSelection(); resetAndFetch();
+        }
 
+        // --- Details ---
         async function openDetails(kid) {
             currentKhatmaId = kid;
             const res = await fetch(`/api/dev/khatma/details?khatma_id=${kid}`, { headers: { 'X-Dev-Key': devKey } });
-            if (!res.ok) return alert("Failed");
             const d = await res.json();
+            currentAdminUid = d.admin.uid; // Store to update admin PIN correcty
 
-            document.getElementById('detail-title').textContent = `${d.info.name} (${d.info.id})`;
-            document.getElementById('edit-name').value = d.info.name;
-            document.getElementById('edit-admin-name').value = d.admin.name;
+            document.getElementById('detail-title').innerText = `${d.info.name}`;
             document.getElementById('edit-admin-pin').value = d.admin.pin;
             document.getElementById('edit-intention').value = d.info.intention;
             document.getElementById('edit-deadline').value = d.info.deadline ? d.info.deadline.split(' ')[0] : '';
-            renderUsers(d.users, d.admin.uid);
-            const modal = document.getElementById('details-modal');
-            modal.classList.remove('hidden'); modal.style.display = 'flex';
-        }
 
-        function renderUsers(users, adminUid) {
-            const ul = document.getElementById('user-list');
-            ul.innerHTML = '';
-            users.forEach(u => {
+            // Render Hizb Grid
+            const grid = document.getElementById('hizb-grid'); grid.innerHTML = '';
+            for (let i = 1; i <= 60; i++) {
+                const info = d.hizb_map[String(i)]; // Keys are strings in JSON
+                const div = document.createElement('div');
+                div.className = `hizb-cell status-${info.status}`;
+                div.innerText = i;
+                div.title = info.status === 'available' ? 'Available' : `${info.status} by ${info.user}`;
+                grid.appendChild(div);
+            }
+
+            // Render Users
+            const ul = document.getElementById('user-list'); ul.innerHTML = '';
+            d.users.forEach(u => {
                 const li = document.createElement('li');
                 li.style = "padding: 10px; border-bottom: 1px solid #334155; margin-bottom: 5px; background: rgba(0,0,0,0.2); border-radius: 4px;";
-                const isAdm = u.id == adminUid;
+                const activeBadges = u.active.map(h => `<span onclick="unassignHizb('${u.id}', ${h})" style="background:var(--warning); color:black; padding:2px 6px; border-radius:10px; font-size:0.75rem; cursor:pointer;" title="Click to Unassign">H${h} &times;</span>`).join(' ');
+
                 li.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <div>
-                            <span style="font-weight:600; color:white;">${u.name}</span>
-                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
-                                Active: ${u.active} | Done: ${u.completed} 
-                                ${u.pin ? `<span style="border:1px solid #555; padding:0 4px; border-radius:3px; margin-left:5px;">PIN: ${u.pin}</span>` : ''}
-                            </div>
+                            <span style="font-weight:600; color:white;">${u.name}</span> <span style="font-size:0.8rem; color:var(--text-muted);">(${u.completed.length} done)</span>
+                            <div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:5px;">${activeBadges} <button onclick="assignHizbPrompt('${u.id}')" style="background:#334155; border:none; color:white; border-radius:10px; padding:2px 8px; font-size:0.75rem; width:auto;">+ Assign</button></div>
                         </div>
-                        <div style="display:flex; gap:5px;">
-                            ${!isAdm ? `<button class="btn-sm btn-danger" onclick="kickUser('${u.id}')" title="Remove User">Kick</button>` : '<span style="color:var(--primary); font-size:0.8rem;">Admin</span>'}
+                        <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                             <div style="display:flex; gap:5px; align-items:center;">
+                                <input type="text" value="${u.pin}" id="pin-${u.id}" style="width:50px; padding:2px; font-size:0.8rem; text-align:center; margin:0;">
+                                <button onclick="updateUserPin('${u.id}')" class="btn-sm" style="padding:2px 5px; font-size:0.7rem; width:auto;">Save PIN</button>
+                             </div>
+                             <button class="btn-sm btn-danger" onclick="kickUser('${u.id}')" style="padding:2px 5px; font-size:0.7rem;">Kick User</button>
                         </div>
                     </div>
                 `;
                 ul.appendChild(li);
             });
+
+            const modal = document.getElementById('details-modal'); modal.classList.remove('hidden'); modal.style.display = 'flex';
         }
+        function closeModal() { document.getElementById('details-modal').style.display = 'none'; }
 
         async function saveSetting(type) {
-            if (!currentKhatmaId) return;
             const actions = { 'intention': { a: 'update_intention', v: document.getElementById('edit-intention').value }, 'deadline': { a: 'deadline', v: document.getElementById('edit-deadline').value } };
-            const c = actions[type];
-            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: c.a, hizb: c.v, khatma_id: currentKhatmaId }) });
-            if (res.ok) alert("Saved");
+            const c = actions[type]; await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: c.a, hizb: c.v, khatma_id: currentKhatmaId }) }); alert("Saved");
         }
-
+        async function saveAdminPin() {
+            await updateUserPin(currentAdminUid, document.getElementById('edit-admin-pin').value); alert("Admin PIN Updated");
+        }
+        async function updateUserPin(uid, val) {
+            const pin = val || document.getElementById(`pin-${uid}`).value;
+            await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_pin', uid: uid, pin: pin, khatma_id: currentKhatmaId }) });
+        }
+        async function assignHizbPrompt(uid) {
+            const h = prompt("Enter Hizb Number (1-60):");
+            if (!h) return;
+            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', uid: uid, hizb: h, khatma_id: currentKhatmaId }) });
+            if (res.ok) openDetails(currentKhatmaId); else alert("Failed (Maybe taken?)");
+        }
+        async function unassignHizb(uid, h) {
+            if (!confirm(`Unassign Hizb ${h}?`)) return;
+            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', uid: uid, hizb: h, khatma_id: currentKhatmaId }) });
+            if (res.ok) openDetails(currentKhatmaId);
+        }
         async function kickUser(uid) {
-            if (!confirm("Remove user and all their assignments?")) return;
+            if (!confirm("Kick user?")) return;
             const res = await fetch('/api/dev/khatma/remove_user', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey }, body: JSON.stringify({ uid: uid, khatma_id: currentKhatmaId }) });
-            if (res.ok) { alert("removed"); openDetails(currentKhatmaId); }
+            if (res.ok) openDetails(currentKhatmaId);
         }
-
-        async function deleteKhatma(id, name) {
-            if (!confirm(`Delete ${name} permanently?`)) return;
-            const res = await fetch('/api/dev/khatma/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey }, body: JSON.stringify({ khatma_id: id }) });
-            if (res.ok) resetAndFetch();
+        async function resetKhatma() {
+            if (!confirm("⚠️ RESET this Khatma?\nThis will clear ALL current progress (unbook everyone).\nIt cannot be undone.")) return;
+            const res = await fetch('/api/dev/khatma/reset', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey }, body: JSON.stringify({ khatma_id: currentKhatmaId }) });
+            if (res.ok) { alert("Reset Successful"); openDetails(currentKhatmaId); resetAndFetch(); }
         }
+        async function deleteKhatma(id, name) { if (confirm(`Delete ${name}?`)) { await fetch('/api/dev/khatma/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey }, body: JSON.stringify({ khatma_id: id }) }); resetAndFetch(); } }
     </script>
 </body>
 

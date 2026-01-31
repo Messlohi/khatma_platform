@@ -305,13 +305,47 @@ class DatabaseManager:
             admin = conn.execute("SELECT full_name, web_pin FROM users WHERE id = ?", (k[2],)).fetchone()
             admin_info = {"name": admin[0] if admin else "Unknown", "pin": admin[1] if admin else "????", "uid": k[2]}
 
-            # 3. Users & Progress
-            users = self.get_all_users(khatma_id)
+            # 3. Users & Progress (Detailed)
+            # Fetch all assignments
+            assignments = conn.execute("SELECT hizb_number, user_id FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,)).fetchall()
+            completed = conn.execute("SELECT hizb_number, user_id FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchall()
+            
+            # Build Hizb Map
+            hizb_map = {}
+            for i in range(1, 61): hizb_map[i] = {"status": "available", "user": None, "uid": None}
+            
+            user_hizbs = {} # uid -> {active: [], completed: []}
+            
+            # Users Map
+            users_rows = conn.execute("SELECT id, full_name, web_pin FROM users WHERE khatma_id = ?", (khatma_id,)).fetchall()
+            users_dict = {r[0]: {"name": r[1], "pin": r[2]} for r in users_rows}
+            
+            for h, uid in assignments:
+                u = users_dict.get(uid)
+                hizb_map[h] = {"status": "active", "user": u["name"] if u else "Unknown", "uid": uid}
+                if uid not in user_hizbs: user_hizbs[uid] = {"active": [], "completed": []}
+                user_hizbs[uid]["active"].append(h)
+                
+            for h, uid in completed:
+                u = users_dict.get(uid)
+                hizb_map[h] = {"status": "completed", "user": u["name"] if u else "Unknown", "uid": uid}
+                if uid not in user_hizbs: user_hizbs[uid] = {"active": [], "completed": []}
+                user_hizbs[uid]["completed"].append(h)
+                
+            # Format Users List
+            users_list = []
+            for uid, info in users_dict.items():
+                uh = user_hizbs.get(uid, {"active": [], "completed": []})
+                users_list.append({
+                    "id": uid, "name": info["name"], "pin": info["pin"],
+                    "active": sorted(uh["active"]), "completed": sorted(uh["completed"])
+                })
             
             return {
                 "info": {"id": k[0], "name": k[1], "intention": k[3], "deadline": k[4], "total": k[5], "created": k[6]},
                 "admin": admin_info,
-                "users": users
+                "users": users_list,
+                "hizb_map": hizb_map
             }
 
     # --- Dev Tools ---
@@ -511,8 +545,13 @@ class DatabaseManager:
                 conn.execute("UPDATE khatmas SET deadline = ? WHERE id = ?", (deadline, khatma_id))
             if total_khatmas is not None:
                 conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (total_khatmas, khatma_id))
-                conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (total_khatmas, khatma_id))
             conn.commit(); self.bump(); self.bump_khatma(khatma_id)
+            return True
+
+    def update_user_pin(self, uid, new_pin, khatma_id):
+        with self.get_connection() as conn:
+            conn.execute("UPDATE users SET web_pin = ? WHERE id = ? AND khatma_id = ?", (new_pin, uid, khatma_id))
+            conn.commit()
             return True
 
     def remove_user_from_khatma(self, uid, khatma_id):
@@ -764,6 +803,20 @@ def dev_remove_user():
     db.remove_user_from_khatma(uid, kid)
     return jsonify({"success": True})
 
+@app.route("/api/dev/khatma/reset", methods=["POST"])
+@require_dev_auth
+def dev_reset_khatma():
+    d = request.get_json()
+    kid = d.get("khatma_id")
+    if not kid: return jsonify({"error": "Missing ID"}), 400
+    
+    with db.get_connection() as conn:
+        conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (kid,))
+        conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (kid,))
+        conn.commit()
+    db.bump(); db.bump_khatma(kid)
+    return jsonify({"success": True})
+
 @app.route("/api/dev/khatma/delete", methods=["POST"])
 @require_dev_auth
 def dev_delete_khatma():
@@ -771,6 +824,16 @@ def dev_delete_khatma():
     kid = d.get("khatma_id")
     if not kid: return jsonify({"error": "Missing ID"}), 400
     db.delete_khatma(kid)
+    return jsonify({"success": True})
+
+@app.route("/api/dev/khatmas/bulk_delete", methods=["POST"])
+@require_dev_auth
+def dev_bulk_delete():
+    d = request.get_json()
+    ids = d.get("ids", [])
+    if not ids: return jsonify({"error": "No IDs"}), 400
+    for kid in ids:
+        db.delete_khatma(kid)
     return jsonify({"success": True})
 
 # --- Admin API ---
@@ -805,6 +868,11 @@ def admin_control():
     
     if action == "unassign":
         if db.unassign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
+    elif action == "assign":
+        if db.assign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
+    elif action == "update_pin":
+        pin = d.get("pin")
+        if db.update_user_pin(uid, pin, khatma_id): return jsonify({"success": True})
     elif action == "complete":
         res = db.mark_done(uid, hizb, khatma_id)
         if res == "completed": 
