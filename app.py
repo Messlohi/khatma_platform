@@ -923,6 +923,11 @@ def admin_control():
         if db.unassign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
     elif action == "assign":
         if db.assign_hizb(uid, hizb, khatma_id): return jsonify({"success": True})
+    elif action == "assign_bulk":
+        hizbs = d.get("hizbs", [])
+        for h in hizbs:
+            db.assign_hizb(uid, h, khatma_id)
+        return jsonify({"success": True})
     elif action == "update_pin":
         pin = d.get("pin")
         if db.update_user_pin(uid, pin, khatma_id): return jsonify({"success": True})

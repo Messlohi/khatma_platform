@@ -226,15 +226,16 @@
 
         .hizb-cell {
             aspect-ratio: 1;
-            background: #334155;
-            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
-            color: #cbd5e1;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            color: #ccc;
             cursor: pointer;
-            position: relative;
+            /* Made pointer for interactivity */
         }
 
         .hizb-cell:hover {
@@ -248,15 +249,37 @@
 
         .hizb-cell.status-completed {
             background: var(--success);
-            color: #FFF;
+            color: black;
+            border-color: var(--success);
         }
 
-        /* Checkbox */
-        .select-check {
-            transform: scale(1.5);
-            cursor: pointer;
-            accent-color: var(--primary);
+        .hizb-cell.status-taken {
+            background: var(--warning);
+            color: black;
+            border-color: var(--warning);
         }
+
+        .hizb-cell.selected-for-assign {
+            background: #3b82f6 !important;
+            color: white !important;
+            border: 2px solid white !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .selection-banner {
+            position: sticky;
+            bottom: 0;
+            background: #1e293b;
+            padding: 10px;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
 
         /* Batch Bar */
         #batch-bar {
@@ -425,6 +448,22 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Selection Banner (Hidden by default) -->
+            <div id="selection-banner" class="selection-banner hidden">
+                <div>
+                    <span style="color:var(--text-muted); font-size:0.9rem;">Assigning to:</span>
+                    <strong id="selection-target-name" style="color:white; margin-left:5px;">User</strong>
+                    <span id="selection-count"
+                        style="background:var(--primary); color:white; padding:2px 8px; border-radius:10px; font-size:0.75rem; margin-left:10px;">0
+                        selected</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="cancelSelection()" class="btn-sm btn-danger">Cancel</button>
+                    <button onclick="confirmSelection()" class="btn-sm"
+                        style="background:var(--success); color:black;">Confirm Assignment</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -434,6 +473,12 @@
         let currentKhatmaId = null; let currentAdminUid = null;
         let isLoading = false; let hasMore = true;
         let selectedKhatmas = new Set();
+
+        // Selection Mode State
+        let isSelectionMode = false;
+        let selectionTargetUid = null;
+        let selectionHizbs = new Set();
+        let currentHizbData = {}; // Store raw map to check availability
 
         if (devKey) { login(true); }
 
@@ -516,13 +561,23 @@
             document.getElementById('edit-deadline').value = d.info.deadline ? d.info.deadline.split(' ')[0] : '';
 
             // Render Hizb Grid
+            currentHizbData = d.hizb_map; // Store for validaton
             const grid = document.getElementById('hizb-grid'); grid.innerHTML = '';
             for (let i = 1; i <= 60; i++) {
                 const info = d.hizb_map[String(i)]; // Keys are strings in JSON
                 const div = document.createElement('div');
                 div.className = `hizb-cell status-${info.status}`;
+                div.id = `grid-cell-${i}`;
                 div.innerText = i;
-                div.title = info.status === 'available' ? 'Available' : `${info.status} by ${info.user}`;
+                if (info.status === 'available') {
+                    div.title = "Click to toggle selection (Allocating)";
+                    div.onclick = () => handleGridClick(i);
+                } else {
+                    div.title = `${info.status} by ${info.user}`;
+                    div.onclick = () => { if (isSelectionMode) alert("This hizb is already taken."); };
+                    div.style.cursor = isSelectionMode ? "not-allowed" : "default";
+                    div.style.opacity = isSelectionMode ? "0.4" : "1";
+                }
                 grid.appendChild(div);
             }
 
@@ -537,7 +592,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <div>
                             <span style="font-weight:600; color:white;">${u.name}</span> <span style="font-size:0.8rem; color:var(--text-muted);">(${u.completed.length} done)</span>
-                            <div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:5px;">${activeBadges} <button onclick="assignHizbPrompt('${u.id}')" style="background:#334155; border:none; color:white; border-radius:10px; padding:2px 8px; font-size:0.75rem; width:auto;">+ Assign</button></div>
+                            <div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:5px;">${activeBadges} <button onclick="startSelectionMode('${u.id}', '${u.name.replace(/'/g, "\\'")}')" style="background:#334155; border:none; color:white; border-radius:10px; padding:2px 8px; font-size:0.75rem; width:auto;">+ Assign</button></div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
                              <div style="display:flex; gap:5px; align-items:center;">
@@ -566,11 +621,75 @@
             const pin = val || document.getElementById(`pin-${uid}`).value;
             await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_pin', uid: uid, pin: pin, khatma_id: currentKhatmaId }) });
         }
-        async function assignHizbPrompt(uid) {
-            const h = prompt("Enter Hizb Number (1-60):");
-            if (!h) return;
-            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', uid: uid, hizb: h, khatma_id: currentKhatmaId }) });
-            if (res.ok) openDetails(currentKhatmaId); else alert("Failed (Maybe taken?)");
+
+        // --- Interactive Assignment ---
+        function startSelectionMode(uid, name) {
+            isSelectionMode = true;
+            selectionTargetUid = uid;
+            selectionHizbs.clear();
+            document.getElementById('selection-target-name').innerText = name;
+            document.getElementById('selection-banner').classList.remove('hidden');
+
+            // Visual cues
+            document.getElementById('user-list').parentElement.style.opacity = '0.3'; // Dim users
+            document.getElementById('user-list').parentElement.style.pointerEvents = 'none'; // Disable user list interaction
+
+            // Reset grid visuals
+            for (let i = 1; i <= 60; i++) {
+                const cell = document.getElementById(`grid-cell-${i}`);
+                if (cell) {
+                    cell.classList.remove('selected-for-assign');
+                    if (currentHizbData[String(i)].status !== 'available') cell.style.opacity = '0.3';
+                }
+            }
+            updateSelectionCount();
+
+            // Smooth scroll to top
+            document.getElementById('details-modal').children[0].scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function handleGridClick(i) {
+            if (!isSelectionMode) return;
+            // Toggle
+            if (selectionHizbs.has(i)) {
+                selectionHizbs.delete(i);
+                document.getElementById(`grid-cell-${i}`).classList.remove('selected-for-assign');
+            } else {
+                selectionHizbs.add(i);
+                document.getElementById(`grid-cell-${i}`).classList.add('selected-for-assign');
+            }
+            updateSelectionCount();
+        }
+
+        function updateSelectionCount() {
+            document.getElementById('selection-count').innerText = `${selectionHizbs.size} selected`;
+        }
+
+        function cancelSelection() {
+            isSelectionMode = false;
+            document.getElementById('selection-banner').classList.add('hidden');
+            document.getElementById('user-list').parentElement.style.opacity = '1';
+            document.getElementById('user-list').parentElement.style.pointerEvents = 'auto';
+            // Restore grid opacity
+            for (let i = 1; i <= 60; i++) document.getElementById(`grid-cell-${i}`).style.opacity = '1';
+            openDetails(currentKhatmaId); // Redraw to clear selections
+        }
+
+        async function confirmSelection() {
+            if (selectionHizbs.size === 0) return alert("No hizbs selected");
+
+            const hizbs = Array.from(selectionHizbs);
+            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign_bulk', uid: selectionTargetUid, hizbs: hizbs, khatma_id: currentKhatmaId }) });
+
+            if (res.ok) {
+                isSelectionMode = false;
+                document.getElementById('selection-banner').classList.add('hidden');
+                document.getElementById('user-list').parentElement.style.opacity = '1';
+                document.getElementById('user-list').parentElement.style.pointerEvents = 'auto';
+                openDetails(currentKhatmaId); // Refresh
+            } else {
+                alert("Failed to assign (Connection error?)");
+            }
         }
         async function unassignHizb(uid, h) {
             if (!confirm(`Unassign Hizb ${h}?`)) return;
