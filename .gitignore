@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+khatma.db
+instance/
+.env
+.DS_Store
+khatma-env/
