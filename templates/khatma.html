@@ -112,9 +112,7 @@
             color: var(--border-gold);
         }
 
-        .header-content {
-            /* Wrapper for content to stay centered */
-        }
+
 
         .duaa {
             font-size: 1.2rem;
@@ -520,7 +518,7 @@
         /* @media (max-width: 640px) {
             .bottom-nav {
                 display: flex;
-            }
+        }
 
             body {
                 padding-bottom: 70px;
@@ -717,9 +715,105 @@
             margin-top: 40px;
         }
     </style>
+    /* Read Modal Styles */
+    .read-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 3000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    }
+
+    .read-modal-content {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    }
+
+    .read-modal-header {
+    background: var(--primary);
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .read-modal-body {
+    flex: 1;
+    background: #f3f4f6;
+    position: relative;
+    }
+
+    .read-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    }
+
+    .close-read-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    }
+
+    .external-link-btn {
+    background: var(--secondary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    }
+    </style>
 </head>
 
 <body>
+    <!-- Read Modal -->
+    <div id="read-modal" class="read-modal">
+        <div class="read-modal-content">
+            <div class="read-modal-header">
+                <div style="font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                    📖 <span id="read-modal-title">الحزب</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <a id="read-external-link" href="#" target="_blank" class="external-link-btn">
+                        🔗 <span data-t="open_external">فتح في نافذة جديدة</span>
+                    </a>
+                    <button class="close-read-btn" onclick="closeReadModal()">&times;</button>
+                </div>
+            </div>
+            <div class="read-modal-body">
+                <iframe id="quran-iframe" class="read-iframe" src="" allowfullscreen></iframe>
+                <div id="iframe-loader"
+                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--primary);">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="loading" class="loading-overlay">
         <div class="spinner"></div>
@@ -931,7 +1025,9 @@
         <div class="modal-content">
             <h3 id="action-title" data-t="manage_hizb">إدارة الحزب</h3>
             <button class="btn btn-primary" style="background-color: #0d9488; margin-bottom: 10px;"
-                onclick="readHizb()">📖 <span data-t="read_now">اقرأ الآن (ورش)</span></button>
+                onclick="openReadModal(currentHizb)">
+                📖 <span data-t="read_now">اقرأ الحزب</span>
+            </button>
             <button class="btn btn-primary" onclick="markDone()" data-t="mark_as_done">أتممت القراءة ✅</button>
             <button id="done-all-btn" class="btn btn-primary"
                 style="display: none; background-color: #059669; margin-top: 10px;" onclick="markAllDone()"
@@ -1544,7 +1640,7 @@
 
                     // Read button HTML
                     const readBtnHtml = `
-                    <button onclick="event.stopPropagation(); window.open('https://quran.com/hizb/${i}?mushaf=3', '_blank');" 
+                    <button onclick="event.stopPropagation(); openReadModal(${i});" 
                         style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.85rem; margin-left: 8px; transition: 0.2s; display: flex; align-items: center; gap: 4px;"
                         onmouseover="this.style.background='#047857'" 
                         onmouseout="this.style.background='var(--primary)'"
@@ -1902,8 +1998,39 @@
 
             function readHizb() {
                 if (!currentHizb) return;
-                // Warsh mushaf is mushaf=3 on Quran.com
-                window.open(`https://quran.com/hizb/${currentHizb}?mushaf=3`, '_blank');
+                openReadModal(currentHizb);
+            }
+
+            function openReadModal(hizb) {
+                if (!hizb) return;
+                const modal = document.getElementById('read-modal');
+                const title = document.getElementById('read-modal-title');
+                const iframe = document.getElementById('quran-iframe');
+                const loader = document.getElementById('iframe-loader');
+                const link = document.getElementById('read-external-link');
+
+                currentHizb = hizb;
+                title.textContent = ` ${i18n[currentLang].hizb_label} ${hizb}`;
+                const url = `https://quran.com/hizb/${hizb}?mushaf=3`;
+
+                iframe.style.display = 'none';
+                loader.style.display = 'block';
+                iframe.src = url;
+                link.href = url;
+
+                iframe.onload = () => {
+                    loader.style.display = 'none';
+                    iframe.style.display = 'block';
+                };
+
+                modal.style.display = 'flex';
+            }
+
+            function closeReadModal() {
+                const modal = document.getElementById('read-modal');
+                const iframe = document.getElementById('quran-iframe');
+                modal.style.display = 'none';
+                iframe.src = ''; // Stop video/audio if playing
             }
 
             function triggerConfetti() {
@@ -2482,9 +2609,17 @@
             }
 
             function openReadPrompt() {
-                if (sessionPrefs.skipReadPrompt) return;
-                const modal = document.getElementById('read-prompt-modal');
-                if (modal) modal.style.display = 'flex';
+                if (!currentHizb) return;
+                const modal = document.getElementById('custom-confirm-modal');
+                // Reuse custom confirm styles but just one button or custom logic?
+                // Easier to just use customConfirm asking "Do you want to read now?"
+
+                customConfirm(
+                    i18n[currentLang].prompt_read_now.replace('{hizb}', currentHizb),
+                    currentLang === 'ar' ? 'تم الحجز بنجاح' : 'Success'
+                ).then((yes) => {
+                    if (yes) openReadModal(currentHizb);
+                });
             }
 
             function smartRead(now) {
