@@ -112,7 +112,9 @@
             color: var(--border-gold);
         }
 
-
+        .header-content {
+            /* Wrapper for content to stay centered */
+        }
 
         .duaa {
             font-size: 1.2rem;
@@ -507,23 +509,15 @@
             font-weight: bold;
         }
 
-        .bottom-nav {
-            display: flex;
-        }
-
-        body {
-            padding-bottom: 70px;
-        }
-
-        /* @media (max-width: 640px) {
+        @media (max-width: 640px) {
             .bottom-nav {
                 display: flex;
-        }
+            }
 
             body {
                 padding-bottom: 70px;
             }
-        } */
+        }
 
         /* PWA Onboarding Banner */
         .pwa-banner {
@@ -714,79 +708,79 @@
             font-size: 0.85rem;
             margin-top: 40px;
         }
-    </style>
-    /* Read Modal Styles */
-    .read-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 3000;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    }
 
-    .read-modal-content {
-    width: 100%;
-    height: 100%;
-    background: #fff;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    }
+        /* Read Modal Styles */
+        .read-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
 
-    .read-modal-header {
-    background: var(--primary);
-    color: white;
-    padding: 10px 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
+        .read-modal-content {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
 
-    .read-modal-body {
-    flex: 1;
-    background: #f3f4f6;
-    position: relative;
-    }
+        .read-modal-header {
+            background: var(--primary);
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
 
-    .read-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    }
+        .read-modal-body {
+            flex: 1;
+            background: #f3f4f6;
+            position: relative;
+        }
 
-    .close-read-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    }
+        .read-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
 
-    .external-link-btn {
-    background: var(--secondary);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    }
+        .close-read-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .external-link-btn {
+            background: var(--secondary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
     </style>
 </head>
 
