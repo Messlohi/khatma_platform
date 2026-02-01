@@ -571,8 +571,8 @@ class DatabaseManager:
     
     def create_khatma(self, name, admin_name, admin_pin, intention="", deadline=None):
         khatma_id = self.generate_khatma_id()
-        if not deadline:
-            deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+        # Removed default deadline assignment
+
         
         with self.get_connection() as conn:
             admin_uid = None
@@ -792,13 +792,12 @@ def create_khatma_api():
     
     try:
         # Format deadline to include time if only date is provided
+        # Format deadline to include time if only date is provided
         if deadline:
             deadline_formatted = f"{deadline} 23:59"
         else:
-            # Default: 1 week from now
-            from datetime import datetime, timedelta
-            default_deadline = datetime.now() + timedelta(days=7)
-            deadline_formatted = default_deadline.strftime("%Y-%m-%d 23:59")
+            deadline_formatted = None
+
         
         khatma_id, admin_uid = db.create_khatma(name, admin_name, admin_pin, intention, deadline_formatted)
         return jsonify({"success": True, "khatma_id": khatma_id, "admin_uid": admin_uid})
