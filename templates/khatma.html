@@ -1767,14 +1767,23 @@
             }
 
             function updateTimer() {
-                if (!window.hizbData || !window.hizbData.deadline) return;
+                const countdownEl = document.getElementById('countdown');
+                if (!window.hizbData || !window.hizbData.deadline || window.hizbData.deadline === 'None') {
+                    if (countdownEl) countdownEl.style.display = 'none';
+                    return;
+                }
 
                 const deadline = new Date(window.hizbData.deadline.replace(/-/g, "/")).getTime();
+                if (isNaN(deadline)) {
+                    if (countdownEl) countdownEl.style.display = 'none';
+                    return;
+                }
+
                 const now = new Date().getTime();
                 const diff = deadline - now;
 
                 if (diff <= 0) {
-                    document.getElementById('countdown').style.display = 'none';
+                    countdownEl.style.display = 'none';
                     return;
                 }
 
