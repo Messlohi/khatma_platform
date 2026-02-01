@@ -751,6 +751,8 @@
             /* Vital for cropping */
         }
 
+        }
+
         .read-iframe {
             width: 100%;
             height: calc(100% + 64px);
@@ -760,6 +762,14 @@
             top: -64px;
             /* Move up to hide navbar (approx 64px) */
             left: 0;
+        }
+
+        @media (max-width: 768px) {
+            .read-iframe {
+                top: -110px;
+                /* Increase header crop for mobile */
+                height: calc(100% + 110px);
+            }
         }
 
         .close-read-btn {
