@@ -112,9 +112,7 @@
             color: var(--border-gold);
         }
 
-        .header-content {
-            /* Wrapper for content to stay centered */
-        }
+        /* .header-content wrapper */
 
         .duaa {
             font-size: 1.2rem;
@@ -1199,6 +1197,7 @@
                     confirm_hizb: "تأكيد الحجز ✅",
                     read_prompt_title: "تم الحجز بنجاح! ✨",
                     read_prompt_sub: "هل تريد البدء في قراءة الحزب الآن؟",
+                    prompt_read_now: "هل تريد قراءة الحزب {hizb} الآن؟",
                     read_now_btn: "نعم، اقرأ الآن",
                     read_later_btn: "سأقرأ لاحقاً",
                     onboard_title: "تطبيق ختمات العائلة",
@@ -1301,6 +1300,7 @@
                     confirm_hizb: "Confirm Reservation ✅",
                     read_prompt_title: "Success! Booked.",
                     read_prompt_sub: "Would you like to start reading this Hizb now?",
+                    prompt_read_now: "Do you want to read Hizb {hizb} now?",
                     read_now_btn: "Yes, Read Now",
                     read_later_btn: "I'll read later",
                     onboard_title: "Family Khatma App",
@@ -1401,6 +1401,7 @@
                     confirm_hizb: "Confirmer la réservation ✅",
                     read_prompt_title: "Succès ! Réservé.",
                     read_prompt_sub: "Voulez-vous commencer à lire ce Hizb maintenant ?",
+                    prompt_read_now: "Voulez-vous lire le Hizb {hizb} maintenant ?",
                     read_now_btn: "Oui, lire maintenant",
                     read_later_btn: "Je lirai plus tard",
                     onboard_title: "App Khatma Famille",
@@ -1784,9 +1785,10 @@
 
             async function fetchStatus() {
                 try {
-                    let url = webUserUid ? `/api/khatma?uid=${webUserUid}&khatma_id=${khatmaId}` : `/api/khatma?khatma_id=${khatmaId}`;
-                    // Add cache buster
-                    url += `&t=${new Date().getTime()}`;
+                    let url = `/api/khatma?t=${new Date().getTime()}`;
+                    if (webUserUid) url += `&uid=${webUserUid}`;
+                    if (khatmaId) url += `&khatma_id=${khatmaId}`;
+
 
                     const res = await fetch(url);
                     if (!res.ok) throw new Error('Network response was not ok');
@@ -2669,16 +2671,18 @@
             }
 
             function openReadPrompt() {
-                if (!currentHizb) return;
-                const modal = document.getElementById('custom-confirm-modal');
-                // Reuse custom confirm styles but just one button or custom logic?
-                // Easier to just use customConfirm asking "Do you want to read now?"
+                if (!currentHizb || sessionPrefs.skipReadPrompt) return;
 
                 customConfirm(
                     i18n[currentLang].prompt_read_now.replace('{hizb}', currentHizb),
                     currentLang === 'ar' ? 'تم الحجز بنجاح' : 'Success'
                 ).then((yes) => {
-                    if (yes) openReadModal(currentHizb);
+                    if (yes) {
+                        openReadModal(currentHizb);
+                    } else {
+                        // User chose not to read now, remember for session
+                        sessionPrefs.skipReadPrompt = true;
+                    }
                 });
             }
 
