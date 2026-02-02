@@ -1361,7 +1361,6 @@
                     alert_enter_name: "Enter your name",
                     khatma_progress: "Current Khatma Progress",
                     khatma_completed_title: "🎉 Khatma Completed!",
-                    khatma_completed_title: "🎉 Khatma Completed!",
                     confirm_book_hizb: "Do you want to book Hizb {hizb} in your name ({name})?",
                     confirm_yes: "Confirm",
                     confirm_cancel: "Cancel",
@@ -1461,7 +1460,6 @@
                     confirm_logout: "Voulez-vous vous déconnecter et changer d'utilisateur ?",
                     alert_enter_name: "Entrez votre nom",
                     khatma_progress: "Progression de la Khatma",
-                    khatma_completed_title: "🎉 Khatma Terminée !",
                     khatma_completed_title: "🎉 Khatma Terminée !",
                     confirm_book_hizb: "Voulez-vous réserver le Hizb {hizb} à votre nom ({name}) ?",
                     confirm_yes: "Confirmer",
@@ -2102,7 +2100,9 @@
             async function handleHizbClick(h) {
                 currentHizb = h;
                 if (webUserUid) {
-                    const confirmed = await customConfirm(i18n[currentLang].confirm_book_hizb.replace('{hizb}', h).replace('{name}', webUserName));
+                    let msgTemplate = (i18n[currentLang] && i18n[currentLang].confirm_book_hizb) ? i18n[currentLang].confirm_book_hizb : "Confirm booking Hizb {hizb}?";
+                    const msg = msgTemplate.replace('{hizb}', h).replace('{name}', webUserName || 'Reader');
+                    const confirmed = await customConfirm(msg);
                     if (confirmed) {
                         await quickJoin(h);
                     }
