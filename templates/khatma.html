@@ -1150,30 +1150,19 @@
         </div>
 
         <script>
-            // Extract khatma_id from URL for multi-tenant support
-            // Extract ID from URL (now /<id>)
-            const pathParts = window.location.pathname.split('/').filter(p => p);
-            const khatmaId = pathParts[pathParts.length - 1]; // Robust way to get last segment
-
-            var currentHizb = null;
-            var webUserName = localStorage.getItem('web_user_name') || null;
-            var webUserPin = localStorage.getItem('web_user_pin') || null;
-            var webUserUid = localStorage.getItem('web_user_uid') || null;
-
-            // Validate and clean session - if uid exists but is invalid, clear everything
-            if (webUserUid && (webUserUid === 'null' || webUserUid === 'undefined' || !webUserName)) {
+            // Initialization Logic moved to init() and global scope
+            // Validating session
+            let _uid = localStorage.getItem('web_user_uid');
+            let _name = localStorage.getItem('web_user_name');
+            if (_uid && (_uid === 'null' || _uid === 'undefined' || !_name)) {
                 localStorage.removeItem('web_user_uid');
                 localStorage.removeItem('web_user_name');
                 localStorage.removeItem('web_user_pin');
-                webUserUid = null;
-                webUserName = null;
-                webUserPin = null;
+                // Refresh global vars just in case
+                if (typeof webUserUid !== 'undefined') webUserUid = null;
             }
 
-            var currentLang = localStorage.getItem('khatma_lang') || 'ar';
-            var myAssignments = JSON.parse(localStorage.getItem('my_assignments') || '[]');
-            var serverVersion = 0;
-            var deferredPrompt; // For PWA install
+            let deferredPrompt; // For PWA install
 
             const i18n = {
                 ar: {
@@ -1486,6 +1475,22 @@
                 skipReadPrompt: false
             };
 
+            // Global State Variables
+            let myAssignments = [];
+            let myCompletions = [];
+            let currentLang = localStorage.getItem('khatma_lang') || 'ar';
+            let khatmaId = getKhatmaIdFromUrl();
+            let serverVersion = 0;
+            let webUserUid = localStorage.getItem('web_user_uid');
+            let webUserName = localStorage.getItem('web_user_name');
+            let webUserPin = localStorage.getItem('web_user_pin');
+
+            function getKhatmaIdFromUrl() {
+                const path = window.location.pathname;
+                const match = path.match(/\/khatma\/([a-zA-Z0-9]+)/);
+                return match ? match[1] : null;
+            }
+
             function toggleLang(val) {
                 currentLang = val || (currentLang === 'ar' ? 'fr' : (currentLang === 'fr' ? 'en' : 'ar'));
 
@@ -1543,6 +1548,31 @@
                 if (document.getElementById('hizb-list').style.display === 'block') {
                     renderList();
                 }
+            }
+
+            function isMyCompleted(i) {
+                if (window.hizbData && window.hizbData.my_completions) {
+                    return window.hizbData.my_completions.includes(i);
+                }
+                return false;
+            }
+
+            function undoCompletePrompt(i) {
+                customConfirm(
+                    currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`)
+                ).then((confirmed) => {
+                    if (confirmed) {
+                        const myUid = localStorage.getItem('web_user_uid');
+                        fetch('/api/undo_complete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: getKhatmaIdFromUrl() })
+                        }).then(res => res.json()).then(d => {
+                            if (d.success) refreshData();
+                            else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
+                        });
+                    }
+                });
             }
 
             function scrollToSec(id) {
@@ -1802,6 +1832,9 @@
                     if (data.my_assignments) {
                         myAssignments = data.my_assignments;
                         localStorage.setItem('my_assignments', JSON.stringify(myAssignments));
+                    }
+                    if (data.my_completions) {
+                        myCompletions = data.my_completions; // Track for undo
                     }
 
                     if (data.total_khatmas !== undefined) document.getElementById('stat-total').innerText = data.total_khatmas;
@@ -2086,12 +2119,28 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name: webUserName, pin: webUserPin, hizb: h, khatma_id: khatmaId })
                     });
-                    const data = await res.json();
+
+                    const text = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        console.error("Failed to parse JSON:", text);
+                        throw new Error(`Server Error (${res.status}): ${text.substring(0, 100)}`);
+                    }
+
                     if (data.success) {
                         await init();
                         openReadPrompt();
-                    } else { await customAlert(data.error, '', '❌'); showLoading(false); }
-                } catch (e) { await customAlert('خطأ في الاتصال', '', '❌'); showLoading(false); }
+                    } else {
+                        showLoading(false);
+                        await customAlert(data.error || "Unknown error", '', '❌');
+                    }
+                } catch (e) {
+                    console.error("Book Error:", e);
+                    showLoading(false);
+                    await customAlert(`خطأ في الاتصال: ${e.message}`, '', '❌');
+                }
             }
             function openActionModal(h) {
                 currentHizb = h;

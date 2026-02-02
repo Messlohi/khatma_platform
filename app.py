@@ -296,6 +296,13 @@ class DatabaseManager:
                 return [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", 
                                                   (GLOBAL_GID, int(user_id))).fetchall()]
 
+    def get_user_completions(self, user_id, khatma_id=None):
+        with self.get_connection() as conn:
+            if khatma_id:
+                return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND khatma_id = ?", (int(user_id), khatma_id)).fetchall()]
+            else:
+                 return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND group_id = ?", (int(user_id), GLOBAL_GID)).fetchall()]
+
     def get_status(self, khatma_id=None):
         with self.get_connection() as conn:
             if khatma_id:
@@ -1125,6 +1132,7 @@ def api_status():
         v = db.get_v()
         avail = db.get_available(khatma_id)
         my_ass = db.get_user_assignments(uid, khatma_id) if uid else []
+        my_comp = db.get_user_completions(uid, khatma_id) if uid else []
         
         # Get khatma-specific settings or default
         if khatma_id:
@@ -1144,7 +1152,8 @@ def api_status():
 
         return jsonify({
             "completed_count": int(c), "active_count": int(a), "remaining_count": 60-int(c)-int(a),
-            "version": v or 0, "assignments": ass, "available_hizbs": avail, "my_assignments": my_ass,
+            "version": v or 0, "assignments": ass, "available_hizbs": avail, 
+            "my_assignments": my_ass, "my_completions": my_comp,
             "deadline": deadline, "total_khatmas": total or 0, "intentions": intentions,
             "participants": parts, "intention": intention, "khatma_name": khatma_name
         })
@@ -1186,12 +1195,26 @@ def api_delete_intention():
 
 @app.route("/api/join", methods=["POST"])
 def api_join():
-    d = request.get_json()
-    khatma_id = d.get("khatma_id")  # NEW
-    uid, s = db.register_web_user(d.get("name"), d.get("pin"), khatma_id)
-    if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
-    if db.assign_hizb(uid, int(d.get("hizb")), khatma_id): return jsonify({"success": True, "uid": uid})
-    return jsonify({"error": "الحزب محجوز"}), 400
+    try:
+        d = request.get_json()
+        khatma_id = d.get("khatma_id")
+        name = d.get("name")
+        pin = d.get("pin")
+        hizb = d.get("hizb")
+        
+        if not name: return jsonify({"error": "الاسم مطلوب"}), 400
+        
+        uid, s = db.register_web_user(name, pin, khatma_id)
+        if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
+        
+        if db.assign_hizb(uid, int(hizb), khatma_id): 
+            return jsonify({"success": True, "uid": uid})
+        else:
+            return jsonify({"error": "الحزب محجوز او حدث خطأ"}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 @app.route("/api/done", methods=["POST"])
 def api_done():
