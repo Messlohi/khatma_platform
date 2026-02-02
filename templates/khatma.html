@@ -1147,6 +1147,8 @@
 
     <footer>
         <p data-t="footer">تقبل الله طاعتكم 2026</p>
+        <p style="font-size: 0.8rem; color: #9ca3af; margin-top: 5px;">Khatma: <span id="debug-khatma-name">...</span>
+            (<span id="debug-khatma-id">Global</span>)</p>
     </footer>
 
     <div id="dua-modal" class="modal">
@@ -1569,7 +1571,8 @@
             let myAssignments = [];
             let myCompletions = [];
             let currentLang = localStorage.getItem('khatma_lang') || 'ar';
-            let khatmaId = getKhatmaIdFromUrl();
+            let khatmaId = "{{ khatma_id if khatma_id else '' }}";
+            if (!khatmaId) khatmaId = getKhatmaIdFromUrl();
             let serverVersion = 0;
             let webUserUid = localStorage.getItem('web_user_uid');
             let webUserName = localStorage.getItem('web_user_name');
@@ -1577,7 +1580,8 @@
 
             function getKhatmaIdFromUrl() {
                 const path = window.location.pathname;
-                const match = path.match(/\/khatma\/([a-zA-Z0-9]+)/);
+                // Support both /ID and /khatma/ID for backward compatibility
+                const match = path.match(/\/khatma\/([a-zA-Z0-9]+)/) || path.match(/\/([a-zA-Z0-9]{4,12})/);
                 return match ? match[1] : null;
             }
 
@@ -1656,7 +1660,7 @@
                         fetch('/api/undo_complete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: getKhatmaIdFromUrl() })
+                            body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: khatmaId })
                         }).then(res => res.json()).then(d => {
                             if (d.success) refreshData();
                             else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
@@ -1701,7 +1705,7 @@
                         fetch('/api/undo_complete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: uidToSend, hizb: i, khatma_id: getKhatmaIdFromUrl() })
+                            body: JSON.stringify({ uid: uidToSend, hizb: i, khatma_id: khatmaId })
                         }).then(res => res.json()).then(d => {
                             if (d.success) refreshData();
                             else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
@@ -1873,6 +1877,8 @@
             }
 
             async function init() {
+                const debugEl = document.getElementById('debug-khatma-id');
+                if (debugEl) debugEl.innerText = khatmaId || "Global";
                 updateUI();
                 showLoading(true);
                 try {
@@ -1912,6 +1918,7 @@
             }
 
             async function fetchStatus() {
+                console.log("Fetching status for Khatma ID:", khatmaId);
                 try {
                     let url = `/api/khatma?t=${new Date().getTime()}`;
                     if (webUserUid) url += `&uid=${webUserUid}`;
@@ -1926,6 +1933,10 @@
 
                     serverVersion = data.version;
                     window.hizbData = data;
+
+                    if (data.info && data.info.name) {
+                        document.getElementById('debug-khatma-name').innerText = data.info.name;
+                    }
 
                     const comp = data.completed_count || 0;
                     const act = data.active_count || 0;

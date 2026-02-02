@@ -190,8 +190,9 @@ class DatabaseManager:
     def assign_hizb(self, user_id, hizb_num, khatma_id=None):
         try:
             with self.get_connection() as conn:
+                gid = khatma_id if khatma_id else GLOBAL_GID
                 conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                           (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
+                           (gid, int(user_id), int(hizb_num), khatma_id))
                 conn.commit(); self.bump_khatma(khatma_id); self.bump(); return True
         except Exception as e:
             print(f"DEBUG: assign_hizb failed: {e}")
@@ -216,8 +217,9 @@ class DatabaseManager:
                 c = conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
                                (khatma_id, int(user_id), int(hizb_num)))
                 if c.rowcount == 0: return False
+                gid = khatma_id if khatma_id else GLOBAL_GID
                 conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                           (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
+                           (gid, int(user_id), int(hizb_num), khatma_id))
                 conn.commit(); self.bump(); self.bump_khatma(khatma_id)
                 # Check for completion
                 comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
@@ -245,8 +247,9 @@ class DatabaseManager:
             if c.rowcount > 0:
                 # Move back to assignments
                 if khatma_id:
+                    gid = khatma_id
                     conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                               (GLOBAL_GID, int(user_id), int(hizb_num), khatma_id))
+                               (gid, int(user_id), int(hizb_num), khatma_id))
                     # Also update total_khatmas if it was incremented? 
                     # Actually if we undo, we might need to decrement total if it was *just* completed?
                     # But the total increments on the *transition* to 60. 
@@ -263,16 +266,27 @@ class DatabaseManager:
                 conn.commit(); self.bump(); return True
             return False
 
-    def mark_all_done(self, user_id):
+    def mark_all_done(self, user_id, khatma_id=None):
         with self.get_connection() as conn:
-            hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
-            if not hizbs: return []
-            conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
-            for h in hizbs: conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", (GLOBAL_GID, int(user_id), int(h)))
+            gid = khatma_id if khatma_id else GLOBAL_GID
+            if khatma_id:
+                hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id))).fetchall()]
+                if not hizbs: return []
+                conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id)))
+                for h in hizbs: conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", (gid, int(user_id), int(h), khatma_id))
+            else:
+                hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
+                if not hizbs: return []
+                conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
+                for h in hizbs: conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", (GLOBAL_GID, int(user_id), int(h)))
             conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
             
             # Check for completion
-            comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
+            if khatma_id:
+                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
+            else:
+                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
             return "completed" if comp_count >= 60 else hizbs
 
     def get_available(self, khatma_id=None):
@@ -550,16 +564,24 @@ class DatabaseManager:
             rows = conn.execute("SELECT id, name, text, user_id FROM intentions ORDER BY id DESC LIMIT 50").fetchall()
             return [{"id": r[0], "name": r[1], "text": r[2], "uid": r[3]} for r in rows]
 
-    def reset(self):
+    def reset(self, khatma_id=None):
         with self.get_connection() as conn:
-            self.increment_total_completions() # Increment count on reset
-            conn.execute("DELETE FROM hizb_assignments WHERE group_id = ?", (GLOBAL_GID,))
-            conn.execute("DELETE FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,))
-            conn.execute("DELETE FROM users") 
-            conn.execute("DELETE FROM intentions") # Clear wall for new khatma? Or keep it? Let's clear to keep it fresh.
-            # Reset deadline to 7 days from now
-            new_deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
-            conn.execute("UPDATE settings SET value = ? WHERE key = 'deadline'", (new_deadline,))
+            if khatma_id:
+                # Localized reset
+                conn.execute("UPDATE khatmas SET total_khatmas = total_khatmas + 1 WHERE id = ?", (khatma_id,))
+                conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
+                conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
+                # We don't delete users or intentions for isolated Khatmas to keep membership
+                self.bump_khatma(khatma_id)
+            else:
+                self.increment_total_completions() # Increment count on reset
+                conn.execute("DELETE FROM hizb_assignments WHERE group_id = ?", (GLOBAL_GID,))
+                conn.execute("DELETE FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,))
+                conn.execute("DELETE FROM users WHERE khatma_id IS NULL") # Only clear global users
+                conn.execute("DELETE FROM intentions") 
+                # Reset deadline to 7 days from now
+                new_deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
+                conn.execute("UPDATE settings SET value = ? WHERE key = 'deadline'", (new_deadline,))
             conn.commit(); self.bump()
 
     def get_setting(self, key):
@@ -1125,9 +1147,10 @@ def sitemap():
 def api_status():
     try:
         ur = request.args.get("uid")
-        khatma_id = request.args.get("khatma_id")  # NEW: Get khatma_id
+        khatma_id = request.args.get("khatma_id")
+        if not khatma_id: khatma_id = None # Normalize empty string to None
         
-        # Fix: Only convert to int if it's actually numeric digits
+        # Stick to integer for UID
         uid = int(ur) if (ur and (ur.isdigit() or (ur.startswith('-') and ur[1:].isdigit()))) else None
         
         # Get data - pass khatma_id if provided
@@ -1247,11 +1270,11 @@ def api_done():
 
 @app.route("/api/done_all", methods=["POST"])
 def api_done_all():
-    d = request.get_json(); ur = d.get("uid")
+    d = request.get_json(); ur = d.get("uid"); khatma_id = d.get("khatma_id")
     uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
-    res = db.mark_all_done(uid)
+    res = db.mark_all_done(uid, khatma_id)
     if res == "completed":
-        db.reset()
+        db.reset(khatma_id)
         return jsonify({"success": True, "completed": True})
     if res: return jsonify({"success": True})
     return jsonify({"error": "لا يوجد أحزاب لإتمامها"}), 400
