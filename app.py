@@ -323,39 +323,41 @@ class DatabaseManager:
             if khatma_id:
                 # Get Active for this Khatma
                 active_rows = conn.execute(
-                    "SELECT COALESCE(u.full_name, 'مشارك'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.khatma_id = ?", 
+                    "SELECT COALESCE(u.full_name, 'مشارك'), ha.hizb_number, u.id FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.khatma_id = ?", 
                     (khatma_id,)
                 ).fetchall()
             else:
                  # Get Active for global (backward compat)
                 active_rows = conn.execute(
-                    "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ha.hizb_number FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.group_id = ?", 
+                    "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ha.hizb_number, u.id FROM hizb_assignments ha LEFT JOIN users u ON ha.user_id = u.id WHERE ha.group_id = ?", 
                     (GLOBAL_GID,)
                 ).fetchall()
 
             # Get Completed
             if khatma_id:
                 comp_rows = conn.execute(
-                     "SELECT COALESCE(u.full_name, 'مشارك'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.khatma_id = ?", 
+                     "SELECT COALESCE(u.full_name, 'مشارك'), ch.hizb_number, u.id FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.khatma_id = ?", 
                      (khatma_id,)
                 ).fetchall()
             else:
                  comp_rows = conn.execute(
-                     "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", 
+                     "SELECT COALESCE(u.full_name, 'مشارك (تليجرام)'), ch.hizb_number, u.id FROM completed_hizb ch LEFT JOIN users u ON ch.user_id = u.id WHERE ch.group_id = ?", 
                      (GLOBAL_GID,)
                 ).fetchall()
             
             data = {}
-            for name, hizb in active_rows:
-                if name not in data: data[name] = {"active": [], "completed": []}
+            for name, hizb, uid in active_rows:
+                if name not in data: data[name] = {"active": [], "completed": [], "id": uid}
                 data[name]["active"].append(hizb)
+                if uid and not data[name].get("id"): data[name]["id"] = uid # Ensure ID is captured
                 
-            for name, hizb in comp_rows:
-                if name not in data: data[name] = {"active": [], "completed": []}
+            for name, hizb, uid in comp_rows:
+                if name not in data: data[name] = {"active": [], "completed": [], "id": uid}
                 data[name]["completed"].append(hizb)
+                if uid and not data[name].get("id"): data[name]["id"] = uid
                 
             # Convert to list
-            return [{"name": k, "active": sorted(v["active"]), "completed": sorted(v["completed"])} for k, v in data.items()]
+            return [{"name": k, "active": sorted(v["active"]), "completed": sorted(v["completed"]), "id": v.get("id")} for k, v in data.items()]
 
 
     def get_khatma_full_details(self, khatma_id):
