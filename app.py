@@ -298,10 +298,13 @@ class DatabaseManager:
 
     def get_user_completions(self, user_id, khatma_id=None):
         with self.get_connection() as conn:
+            # print(f"DEBUG: get_user_completions uid={user_id} khatma_id={khatma_id}")
             if khatma_id:
                 return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND khatma_id = ?", (int(user_id), khatma_id)).fetchall()]
             else:
-                 return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND group_id = ?", (int(user_id), GLOBAL_GID)).fetchall()]
+                 res = [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND group_id = ?", (int(user_id), GLOBAL_GID)).fetchall()]
+                 # print(f"DEBUG: global query returning {res} for GID={GLOBAL_GID}")
+                 return res
 
     def get_status(self, khatma_id=None):
         with self.get_connection() as conn:
@@ -1255,20 +1258,48 @@ def api_done_all():
 
 @app.route("/api/undo_complete", methods=["POST"])
 def api_undo_complete():
-    d = request.get_json(); ur = d.get("uid")
-    uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
-    khatma_id = d.get("khatma_id")
-    if db.undo_completion(uid, int(d.get("hizb")), khatma_id): return jsonify({"success": True})
-    return jsonify({"error": "فشل"}), 400
+    try:
+        d = request.get_json()
+        print(f"DEBUG UNDO PAYLOAD receive: {d}", flush=True)
+        if not d: return jsonify({"error": "No data"}), 400
+        
+        ur = d.get("uid")
+        hizb_val = d.get("hizb")
+        
+        uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+        
+        if uid is None: return jsonify({"error": "User not identified"}), 400
+        if hizb_val is None: return jsonify({"error": "Hizb number missing"}), 400
+        
+        khatma_id = d.get("khatma_id")
+        if db.undo_completion(uid, int(hizb_val), khatma_id): 
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to undo"}), 400
+    except Exception as e:
+        print(f"Undo Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/return", methods=["POST"])
 def api_return():
-    d = request.get_json()
-    ur = d.get("uid")
-    khatma_id = d.get("khatma_id")  # NEW
-    uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
-    if db.unassign_hizb(uid, int(d.get("hizb")), khatma_id): return jsonify({"success": True})
-    return jsonify({"error": "فشل"}), 400
+    try:
+        d = request.get_json()
+        if not d: return jsonify({"error": "No data"}), 400
+        
+        ur = d.get("uid")
+        hizb_val = d.get("hizb")
+        
+        uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+        
+        if uid is None: return jsonify({"error": "User not identified"}), 400
+        if hizb_val is None: return jsonify({"error": "Hizb number missing"}), 400
+        
+        khatma_id = d.get("khatma_id")
+        if db.unassign_hizb(uid, int(hizb_val), khatma_id): 
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to return"}), 400
+    except Exception as e:
+        print(f"Return Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # Only initialize bot on startup if it exists

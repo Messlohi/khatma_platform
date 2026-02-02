@@ -352,9 +352,100 @@
         }
 
         .hizb-list-item.completed {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), #064e3b);
             color: white;
-            border-color: var(--primary);
+            border: 1px solid var(--border-gold);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-undo {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-undo:hover {
+            background: rgba(239, 68, 68, 0.9);
+            /* Red on hover */
+            border-color: #ef4444;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-undo {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin: 0 5px;
+        }
+
+        .btn-undo:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: white;
+            transform: scale(1.1);
+        }
+
+        .btn-undo svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 480px) {
+            .hizb-list-item {
+                padding: 8px;
+                flex-wrap: wrap;
+                /* Allow wrapping if really tight */
+            }
+
+            .hizb-number {
+                min-width: 50px;
+                font-size: 0.9rem;
+            }
+
+            .hizb-reader {
+                font-size: 0.8rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 120px;
+                /* Force truncation on small screens */
+            }
+
+            .status-badge {
+                font-size: 0.7rem;
+                padding: 2px 6px;
+            }
+
+            .btn-undo {
+                width: 28px;
+                height: 28px;
+            }
+
+            .btn-undo svg {
+                width: 14px;
+                height: 14px;
+            }
         }
 
         .hizb-list-item.taken {
@@ -1594,20 +1685,32 @@
 
             function undoCompletePrompt(i) {
                 customConfirm(
-                    currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`),
-                    () => {
-                        const myUid = localStorage.getItem('webUserUid');
+                    currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`)
+                ).then((yes) => {
+                    if (yes) {
+                        // Use global variable first, then text storage
+                        const uidToSend = webUserUid || localStorage.getItem('webUserUid');
+                        if (!uidToSend) {
+                            console.error("UID missing during undo!");
+                            customAlert("Login error", "Please refresh", "❌");
+                            return;
+                        }
+
+                        console.log("Undoing for UID:", uidToSend); // Debug log
+
                         fetch('/api/undo_complete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: getKhatmaIdFromUrl() })
+                            body: JSON.stringify({ uid: uidToSend, hizb: i, khatma_id: getKhatmaIdFromUrl() })
                         }).then(res => res.json()).then(d => {
                             if (d.success) refreshData();
                             else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
                         });
                     }
-                );
+                });
             }
+
+
 
             function renderList() {
                 const list = document.getElementById('hizb-list');
@@ -1630,13 +1733,21 @@
                     const isActive = allAssigned.includes(i);
                     const isMine = myAssignments.includes(i);
 
-                    // Find reader name - check both active assignments and completed participants
+                    // Find reader name & UID - check both active assignments and completed participants
                     let readerName = '';
+                    let readerUid = null;
 
                     // First check active assignments
                     for (const [name, hizbs] of Object.entries(assignments)) {
+                        // This is tricky, assignments map is Name -> [Hizbs]. We don't have IDs here directly in this map structure unless we check participants list.
+                        // Actually participants list has everything now.
                         if (hizbs.includes(i)) {
                             readerName = name;
+                            // Try to find UID from participants list
+                            if (window.hizbData.participants) {
+                                const p = window.hizbData.participants.find(p => p.name === name);
+                                if (p) readerUid = p.id;
+                            }
                             break;
                         }
                     }
@@ -1646,13 +1757,24 @@
                         for (const participant of window.hizbData.participants) {
                             if (participant.completed && participant.completed.includes(i)) {
                                 readerName = participant.name;
+                                readerUid = participant.id;
                                 break;
                             }
                         }
                     }
 
+                    if (readerName === webUserName || (readerUid && webUserUid && String(readerUid) === String(webUserUid))) {
+                        // Double check myAssignments/myCompletions consistency
+                        if (!isMine && !isMyCompleted(i)) {
+                            console.warn(`Hizb ${i} determined as mine by generic check but not in my lists! ReaderUID: ${readerUid}, MyUID: ${webUserUid}`);
+                        }
+                    }
+
                     // Determine status
                     let statusClass = '';
+                    if (isMyCompleted(i)) {
+                        console.log(`Hizb ${i} is MINE completed. Showing undo.`);
+                    }
                     let statusText = '';
                     let statusBadgeClass = 'available';
 
@@ -1660,6 +1782,8 @@
                         item.classList.add('completed');
                         statusText = currentLang === 'ar' ? 'مكتمل' : (currentLang === 'fr' ? 'Terminé' : 'Done');
                         statusBadgeClass = 'done';
+
+
                     } else if (isMine) {
                         item.classList.add('my-hizb');
                         statusText = currentLang === 'ar' ? 'حزبك' : (currentLang === 'fr' ? 'Le vôtre' : 'Yours');
@@ -1688,6 +1812,10 @@
                         📖
                     </button>
                 `;
+                    // Determine if it's REALLY mine (UID match from participants list is definitive)
+                    const isReallyMine = (readerUid && webUserUid && String(readerUid) === String(webUserUid));
+                    // Only show Undo for COMPLETED items. (Active items have different actions)
+                    const isActuallyCompleted = (!isAvailable && !isActive);
 
                     item.innerHTML = `
                     <div class="hizb-number">${hizbLabel} ${i}</div>
@@ -1701,7 +1829,7 @@
                     // Add click handlers
                     if (!isAvailable && !isActive) {
                         item.classList.add('completed'); // Ensure class is added
-                        if (isMyCompleted(i)) {
+                        if (isMyCompleted(i) || isReallyMine) {
                             item.style.cursor = 'pointer';
                             item.onclick = () => undoCompletePrompt(i);
                         } else {
@@ -1790,7 +1918,7 @@
                     if (khatmaId) url += `&khatma_id=${khatmaId}`;
 
 
-                    const res = await fetch(url);
+                    const res = await fetch(url, { cache: "no-store", headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' } });
                     if (!res.ok) throw new Error('Network response was not ok');
                     const data = await res.json();
 
@@ -1862,6 +1990,14 @@
                     document.getElementById('khatma-title').innerText = "خطأ في المزامنة";
                     window.hizbData = null; // Ensure we don't render stale/broken data
                 }
+            }
+
+
+            async function refreshData() {
+                await fetchStatus();
+                renderList();
+                renderGrid();
+                renderParticipants();
             }
 
             function renderGrid() {
