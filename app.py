@@ -55,6 +55,7 @@ class DatabaseManager:
 
     def init_db(self):
         with self.get_connection() as conn:
+            conn.execute("PRAGMA journal_mode=WAL") # Enable WAL for better concurrency
             c = conn.cursor()
             
             # New: Khatmas table for multi-tenancy
@@ -235,35 +236,29 @@ class DatabaseManager:
             return "completed" if comp_count >= 60 else True
 
     def undo_completion(self, user_id, hizb_num, khatma_id=None):
-        with self.get_connection() as conn:
-            # Check if actually completed by this user
-            if khatma_id:
-                c = conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
-                               (khatma_id, int(user_id), int(hizb_num)))
-            else:
-                c = conn.execute("DELETE FROM completed_hizb WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
-                               (GLOBAL_GID, int(user_id), int(hizb_num)))
-            
-            if c.rowcount > 0:
-                # Move back to assignments
+        try:
+            with self.get_connection() as conn:
+                # Check if actually completed by this user
                 if khatma_id:
-                    gid = khatma_id
-                    conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                               (gid, int(user_id), int(hizb_num), khatma_id))
-                    # Also update total_khatmas if it was incremented? 
-                    # Actually if we undo, we might need to decrement total if it was *just* completed?
-                    # But the total increments on the *transition* to 60. 
-                    # If we undo, and the count drops below 60, we don't necessarily decrement "total_khatmas" (history).
-                    # We just assume the current round is now incomplete.
-                    # Since mark_done increments total_khatmas and clears the board, "Undoing" the *last* hizb is tricky because the board is cleared!
-                    # If the board was cleared, the user doesn't "own" the completed hizb anymore (it's gone).
-                    # So "Undo" only works for hizbs that are currently in the `completed_hizb` table (i.e. the round is NOT finished yet).
-                    # This is correct behavior. If round finished, it's too late to undo specific hizb (it's history).
-                    self.bump_khatma(khatma_id)
+                    c = conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
+                                   (khatma_id, int(user_id), int(hizb_num)))
                 else:
-                    conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number) VALUES (?, ?, ?)", 
-                               (GLOBAL_GID, int(user_id), int(hizb_num)))
-                conn.commit(); self.bump(); return True
+                    c = conn.execute("DELETE FROM completed_hizb WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
+                                   (GLOBAL_GID, int(user_id), int(hizb_num)))
+                
+                if c.rowcount > 0:
+                    # Move back to assignments - use OR REPLACE to be safe
+                    gid = khatma_id if khatma_id else GLOBAL_GID
+                    conn.execute("INSERT OR REPLACE INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
+                               (gid, int(user_id), int(hizb_num), khatma_id))
+                    conn.commit()
+                    
+                    self.bump()
+                    if khatma_id: self.bump_khatma(khatma_id)
+                    return True
+                return False
+        except Exception as e:
+            print(f"ERROR: undo_completion failed: {e}", flush=True)
             return False
 
     def mark_all_done(self, user_id, khatma_id=None):
@@ -1229,6 +1224,7 @@ def api_join():
         hizb = d.get("hizb")
         
         if not name: return jsonify({"error": "الاسم مطلوب"}), 400
+        if not khatma_id: khatma_id = None
         
         uid, s = db.register_web_user(name, pin, khatma_id)
         if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
@@ -1246,8 +1242,11 @@ def api_join():
 def api_done():
     d = request.get_json()
     ur = d.get("uid")
-    khatma_id = d.get("khatma_id")  # NEW
+    khatma_id = d.get("khatma_id")
+    if not khatma_id: khatma_id = None
     uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+    if uid is None: return jsonify({"error": "User not identified"}), 400
+    
     res = db.mark_done(uid, int(d.get("hizb")), khatma_id)
     if res == "completed":
         # Auto-increment total for this khatma and reset
@@ -1271,7 +1270,10 @@ def api_done():
 @app.route("/api/done_all", methods=["POST"])
 def api_done_all():
     d = request.get_json(); ur = d.get("uid"); khatma_id = d.get("khatma_id")
+    if not khatma_id: khatma_id = None
     uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+    if uid is None: return jsonify({"error": "User not identified"}), 400
+    
     res = db.mark_all_done(uid, khatma_id)
     if res == "completed":
         db.reset(khatma_id)
@@ -1295,6 +1297,7 @@ def api_undo_complete():
         if hizb_val is None: return jsonify({"error": "Hizb number missing"}), 400
         
         khatma_id = d.get("khatma_id")
+        if not khatma_id: khatma_id = None
         if db.undo_completion(uid, int(hizb_val), khatma_id): 
             return jsonify({"success": True})
         return jsonify({"error": "Failed to undo"}), 400
@@ -1317,6 +1320,7 @@ def api_return():
         if hizb_val is None: return jsonify({"error": "Hizb number missing"}), 400
         
         khatma_id = d.get("khatma_id")
+        if not khatma_id: khatma_id = None
         if db.unassign_hizb(uid, int(hizb_val), khatma_id): 
             return jsonify({"success": True})
         return jsonify({"error": "Failed to return"}), 400

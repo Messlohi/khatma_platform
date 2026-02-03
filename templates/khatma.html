@@ -1656,62 +1656,33 @@
                     currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`)
                 ).then((confirmed) => {
                     if (confirmed) {
-                        const myUid = localStorage.getItem('web_user_uid');
+                        const myUid = webUserUid || localStorage.getItem('web_user_uid');
+                        if (!myUid) {
+                            console.error("UID missing during undo!");
+                            customAlert("Error", "Please login again", "❌");
+                            return;
+                        }
+
                         fetch('/api/undo_complete', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uid: myUid, hizb: i, khatma_id: khatmaId })
                         }).then(res => res.json()).then(d => {
                             if (d.success) refreshData();
-                            else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
+                            else customAlert(currentLang === 'ar' ? 'فشل التراجع' : (d.error || 'Failed'));
+                        }).catch(e => {
+                            console.error("Undo error:", e);
+                            customAlert("Network Error", "Failed to reach server", "❌");
                         });
                     }
                 });
             }
 
             function scrollToSec(id) {
-                document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const el = document.getElementById(id);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 // Highlight nav item
-                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-                if (window.event) {
-                    const item = window.event.currentTarget;
-                    if (item && item.classList) item.classList.add('active');
-                }
-            }
-
-            function isMyCompleted(i) {
-                if (!window.hizbData || !window.hizbData.participants) return false;
-                const myUid = localStorage.getItem('webUserUid');
-                if (!myUid) return false;
-                const me = window.hizbData.participants.find(p => String(p.id) === String(myUid));
-                return me && me.completed && me.completed.includes(i);
-            }
-
-            function undoCompletePrompt(i) {
-                customConfirm(
-                    currentLang === 'ar' ? `تراجع عن إتمام الحزب ${i}؟` : (currentLang === 'fr' ? `Annuler Hahizb ${i} ?` : `Undo completion of Hizb ${i}?`)
-                ).then((yes) => {
-                    if (yes) {
-                        // Use global variable first, then text storage
-                        const uidToSend = webUserUid || localStorage.getItem('webUserUid');
-                        if (!uidToSend) {
-                            console.error("UID missing during undo!");
-                            customAlert("Login error", "Please refresh", "❌");
-                            return;
-                        }
-
-                        console.log("Undoing for UID:", uidToSend); // Debug log
-
-                        fetch('/api/undo_complete', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: uidToSend, hizb: i, khatma_id: khatmaId })
-                        }).then(res => res.json()).then(d => {
-                            if (d.success) refreshData();
-                            else customAlert(currentLang === 'ar' ? 'فشل التراجع' : 'Failed');
-                        });
-                    }
-                });
+                document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
             }
 
 
@@ -1776,9 +1747,6 @@
 
                     // Determine status
                     let statusClass = '';
-                    if (isMyCompleted(i)) {
-                        console.log(`Hizb ${i} is MINE completed. Showing undo.`);
-                    }
                     let statusText = '';
                     let statusBadgeClass = 'available';
 
@@ -1918,7 +1886,6 @@
             }
 
             async function fetchStatus() {
-                console.log("Fetching status for Khatma ID:", khatmaId);
                 try {
                     let url = `/api/khatma?t=${new Date().getTime()}`;
                     if (webUserUid) url += `&uid=${webUserUid}`;
@@ -2656,7 +2623,7 @@
                 if (!confirmed) return;
                 showLoading(true);
                 try {
-                    const res = await fetch('/api/done_all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid }) });
+                    const res = await fetch('/api/done_all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) {
                         if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
