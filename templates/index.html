@@ -385,7 +385,7 @@
 
                     <div class="form-group">
                         <label data-t="deadline_label">📅 موعد الإنتهاء (اختياري)</label>
-                        <input type="date" id="deadline" style="background: #fafafa;">
+                        <input type="datetime-local" id="deadline" style="background: #fafafa;">
                         <small style="color: #6b7280; font-size: 0.9rem;" data-t="deadline_hint">* يمكنك تغييره لاحقاً
                             من لوحة التحكم</small>
                     </div>
@@ -814,6 +814,17 @@
                 document.getElementById('admin-pin').required = false;
             }
         }
+
+        // Set minimum date to today/now
+        document.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            const minDateTime = now.toISOString().slice(0, 16);
+            const deadlineInput = document.getElementById('deadline');
+            if (deadlineInput) {
+                deadlineInput.min = minDateTime;
+            }
+        });
     </script>
 </body>
 
