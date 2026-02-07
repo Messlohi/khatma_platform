@@ -5,3 +5,4 @@ instance/
 .env
 .DS_Store
 khatma-env/
+khatma_bot.code-workspace

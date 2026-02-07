@@ -348,7 +348,8 @@
                 <form onsubmit="createKhatma(event)">
                     <div class="form-group">
                         <label data-t="khatma_name">📖 اسم الختمة</label>
-                        <input type="text" id="khatma-name" placeholder="مثال: ختمة عائلة المحمد" required>
+                        <input type="text" id="khatma-name" placeholder="مثال: ختمة عائلة المحمد"
+                            data-t="khatma_name_placeholder" required>
                     </div>
 
                     <!-- Optional Admin Toggle -->
@@ -371,7 +372,8 @@
                     <div id="admin-fields" class="hidden">
                         <div class="form-group">
                             <label data-t="admin_name">👤 اسم المنظم (الأدمن)</label>
-                            <input type="text" id="admin-name" placeholder="اسمك الكامل">
+                            <input type="text" id="admin-name" placeholder="اسمك الكامل"
+                                data-t="admin_name_placeholder">
                         </div>
 
                         <div class="form-group">
@@ -382,15 +384,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label>📅 موعد الإنتهاء (اختياري)</label>
+                        <label data-t="deadline_label">📅 موعد الإنتهاء (اختياري)</label>
                         <input type="date" id="deadline" style="background: #fafafa;">
-                        <small style="color: #6b7280; font-size: 0.9rem;">* يمكنك تغييره لاحقاً من لوحة التحكم</small>
+                        <small style="color: #6b7280; font-size: 0.9rem;" data-t="deadline_hint">* يمكنك تغييره لاحقاً
+                            من لوحة التحكم</small>
                     </div>
 
                     <div class="form-group">
                         <label data-t="intention">🤲 النية / الدعاء (اختياري)</label>
-                        <textarea id="intention" rows="3"
-                            placeholder="اللهم اجعلها ختمة مباركة في ميزان حسناتنا..."></textarea>
+                        <textarea id="intention" rows="3" placeholder="اللهم اجعلها ختمة مباركة في ميزان حسناتنا..."
+                            data-t="intention_placeholder"></textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary" data-t="create_submit">إنشاء الختمة الآن ✨</button>
@@ -483,6 +486,11 @@
                 admin_name: "👤 اسم المنظم (الأدمن)",
                 admin_pin: "🔒 رمز سري (4 أرقام)",
                 intention: "🤲 النية / الدعاء (اختياري)",
+                khatma_name_placeholder: "مثال: ختمة عائلة المحمد",
+                admin_name_placeholder: "اسمك الكامل",
+                deadline_label: "📅 موعد الإنتهاء (اختياري)",
+                deadline_hint: "* يمكنك تغييره لاحقاً من لوحة التحكم",
+                intention_placeholder: "اللهم اجعلها ختمة مباركة في ميزان حسناتنا...",
                 create_submit: "إنشاء الختمة الآن ✨",
                 creating: "جاري إنشاء الختمة...",
                 success_title: "تم إنشاء الختمة بنجاح!",
@@ -526,6 +534,11 @@
                 admin_name: "👤 Organizer Name (Admin)",
                 admin_pin: "🔒 Secret PIN (4 digits)",
                 intention: "🤲 Intention / Prayer (optional)",
+                khatma_name_placeholder: "Example: The Smith Family Khatma",
+                admin_name_placeholder: "Your Full Name",
+                deadline_label: "📅 Deadline (Optional)",
+                deadline_hint: "* You can change this later from the control panel",
+                intention_placeholder: "O Allah, make this a blessed Khatma...",
                 create_submit: "Create Khatma Now ✨",
                 creating: "Creating Khatma...",
                 success_title: "Khatma Created Successfully!",
@@ -568,6 +581,11 @@
                 admin_name: "👤 Nom de l'organisateur (Admin)",
                 admin_pin: "🔒 Code PIN (4 chiffres)",
                 intention: "🤲 Intention / Prière (optionnel)",
+                khatma_name_placeholder: "Exemple: Khatma de la Famille",
+                admin_name_placeholder: "Votre Nom Complet",
+                deadline_label: "📅 Date limite (Optionnel)",
+                deadline_hint: "* Vous pourrez modifier cela plus tard",
+                intention_placeholder: "O Allah, fais de cette Khatma une bénédiction...",
                 create_submit: "Créer la Khatma Maintenant ✨",
                 creating: "Création de la Khatma...",
                 success_title: "Khatma Créée avec Succès!",

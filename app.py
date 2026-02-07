@@ -58,11 +58,7 @@ class DatabaseManager:
             conn.execute("PRAGMA journal_mode=WAL") # Enable WAL for better concurrency
             c = conn.cursor()
             
-            # Migration: Ensure updated_at and last_update are numeric
-            # If they are strings (like '2026-02-03...'), reset them to current time.time()
-            conn.execute("UPDATE khatmas SET updated_at = ? WHERE typeof(updated_at) = 'text'", (time.time(),))
-            conn.execute("UPDATE groups SET last_update = ? WHERE typeof(last_update) = 'text'", (time.time(),))
-            conn.commit()
+            # Migration logic moved after table creation
             
             # New: Khatmas table for multi-tenancy
             c.execute('''CREATE TABLE IF NOT EXISTS khatmas (
@@ -119,6 +115,14 @@ class DatabaseManager:
                 c.execute("ALTER TABLE intentions ADD COLUMN khatma_id TEXT")
             except: pass
             # --------------------------------------
+
+            # Migration: Ensure updated_at and last_update are numeric
+            # If they are strings (like '2026-02-03...'), reset them to current time.time()
+            try:
+                conn.execute("UPDATE khatmas SET updated_at = ? WHERE typeof(updated_at) = 'text'", (time.time(),))
+                conn.execute("UPDATE groups SET last_update = ? WHERE typeof(last_update) = 'text'", (time.time(),))
+                conn.commit()
+            except: pass
 
             # Initialize Global State (for Telegram bot backward compatibility)
             c.execute("INSERT OR IGNORE INTO groups (id, title, last_update) VALUES (?, ?, ?)", (GLOBAL_GID, "Main Khatma", time.time()))
@@ -656,14 +660,14 @@ class DatabaseManager:
 
         return None
 
-    def update_khatma(self, khatma_id, intention=None, deadline=None, total_khatmas=None):
+    def update_khatma(self, khatma_id, **kwargs):
         with self.get_connection() as conn:
-            if intention is not None:
-                conn.execute("UPDATE khatmas SET intention = ? WHERE id = ?", (intention, khatma_id))
-            if deadline is not None:
-                conn.execute("UPDATE khatmas SET deadline = ? WHERE id = ?", (deadline, khatma_id))
-            if total_khatmas is not None:
-                conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (total_khatmas, khatma_id))
+            if 'intention' in kwargs:
+                conn.execute("UPDATE khatmas SET intention = ? WHERE id = ?", (kwargs['intention'], khatma_id))
+            if 'deadline' in kwargs:
+                conn.execute("UPDATE khatmas SET deadline = ? WHERE id = ?", (kwargs['deadline'], khatma_id))
+            if 'total_khatmas' in kwargs:
+                conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (kwargs['total_khatmas'], khatma_id))
             conn.commit(); self.bump(); self.bump_khatma(khatma_id)
             return True
 
@@ -1051,9 +1055,19 @@ def admin_control():
     # --- Settings Updates (Multi-Tenant Aware) ---
     elif action == "deadline":
         if khatma_id:
-            db.update_khatma(khatma_id, deadline=f"{hizb} 23:59")
+            new_deadline = f"{hizb} 23:59" if hizb else None
+            db.update_khatma(khatma_id, deadline=new_deadline)
         else:
-            db.set_setting("deadline", f"{hizb} 23:59")
+            # Global setting (legacy)
+            val = f"{hizb} 23:59" if hizb else None
+            # settings table key=value. If None, maybe delete key? 
+            # Current implementation of set_setting uses INSERT OR REPLACE. 
+            # If value is NULL, it depends on table schema. Value is TEXT.
+            # strict check: if val is None, maybe we want to delete it or set to empty string?
+            # Let's set to empty string for legacy compatibility or just delete.
+            # Existing set_setting: conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+            # If value is None, it inserts NULL.
+            db.set_setting("deadline", val)
         return jsonify({"success": True})
     elif action == "update_total":
         try:
