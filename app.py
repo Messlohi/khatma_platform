@@ -485,10 +485,22 @@ class DatabaseManager:
             results = []
             for r in rows:
                 progress = int((r[4] / 60) * 100)
+                
+                # Format timestamps for frontend (YYYY-MM-DD HH:MM:SS)
+                created_ts = r[2]
+                updated_ts = r[6]
+                
+                # created_at is likely already a string from SQLite default, but updated_at might be float
+                # Check types and convert
+                try:
+                    if isinstance(updated_ts, (int, float)):
+                        updated_ts = datetime.datetime.fromtimestamp(updated_ts).strftime('%Y-%m-%d %H:%M:%S')
+                except: pass
+                
                 if progress >= min_progress:
                      results.append({
-                        "id": r[0], "name": r[1], "created_at": r[2], "total_khatmas": r[3], 
-                        "current_progress": r[4], "user_count": r[5], "updated_at": r[6]
+                        "id": r[0], "name": r[1], "created_at": str(created_ts), "total_khatmas": r[3], 
+                        "current_progress": r[4], "user_count": r[5], "updated_at": str(updated_ts)
                     })
             
             return results
@@ -850,9 +862,30 @@ def create_khatma_api():
     
     try:
         # Format deadline to include time if only date is provided
-        # Format deadline to include time if only date is provided
         if deadline:
-            deadline_formatted = f"{deadline} 23:59"
+            # If it contains T (from datetime-local) or : (time), use it (replace T with space)
+            if "T" in deadline:
+                deadline_formatted = deadline.replace("T", " ")
+            elif ":" in deadline:
+                deadline_formatted = deadline
+            else:
+                 # Date only
+                deadline_formatted = f"{deadline} 23:59"
+            
+            # Validate not in past
+            try:
+                dt = datetime.datetime.strptime(deadline_formatted, "%Y-%m-%d %H:%M")
+                if dt < datetime.datetime.now():
+                    return jsonify({"error": "Deadline cannot be in the past"}), 400
+            except ValueError:
+                 # Try with seconds if present, though HTML input usually doesn't send them
+                try:
+                    dt = datetime.datetime.strptime(deadline_formatted, "%Y-%m-%d %H:%M:%S")
+                    if dt < datetime.datetime.now():
+                        return jsonify({"error": "Deadline cannot be in the past"}), 400
+                except: pass # Ignore parse error here, let it slide or handle later? 
+                             # Actually let's assume if we constructed it, it's valid format or we fail.
+                             # If user sent weird string, strptime fails.
         else:
             deadline_formatted = None
 
@@ -1055,11 +1088,27 @@ def admin_control():
     # --- Settings Updates (Multi-Tenant Aware) ---
     elif action == "deadline":
         if khatma_id:
-            new_deadline = f"{hizb} 23:59" if hizb else None
+            if hizb:
+                new_deadline = hizb.replace("T", " ") if ("T" in hizb or ":" in hizb) else f"{hizb} 23:59"
+                
+                # Check for past date
+                try:
+                    # Flexible parsing
+                    fmt = "%Y-%m-%d %H:%M" if len(new_deadline) <= 16 else "%Y-%m-%d %H:%M:%S"
+                    dt = datetime.datetime.strptime(new_deadline, fmt)
+                    if dt < datetime.datetime.now():
+                         return jsonify({"error": "Deadline cannot be in the past"}), 400
+                except: pass 
+            else:
+                new_deadline = None
             db.update_khatma(khatma_id, deadline=new_deadline)
         else:
             # Global setting (legacy)
-            val = f"{hizb} 23:59" if hizb else None
+            if hizb:
+                val = hizb.replace("T", " ") if ("T" in hizb or ":" in hizb) else f"{hizb} 23:59"
+            else:
+                val = None
+            db.set_setting("deadline", val)
             # settings table key=value. If None, maybe delete key? 
             # Current implementation of set_setting uses INSERT OR REPLACE. 
             # If value is NULL, it depends on table schema. Value is TEXT.
