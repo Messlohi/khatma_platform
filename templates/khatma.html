@@ -2371,7 +2371,9 @@
                         // Check if user is admin - redirect to admin panel
                         if (data.is_admin) {
                             localStorage.setItem('is_admin', 'true');
-                            window.location.href = '/?admin=true';
+                            localStorage.setItem('admin_khatma_id', khatmaId); // Store which khatma they are admin of
+                            closeModal();
+                            await init(); 
                             return;
                         }
 
@@ -2519,8 +2521,12 @@
 
             async function adminSetDeadline() {
                 const d = document.getElementById('admin-deadline').value;
-                if (!d) return alert(i18n[currentLang].alert_select_date);
-                const confirmed = await customConfirm(i18n[currentLang].confirm_change_date.replace('{date}', d));
+                let msg = i18n[currentLang].confirm_change_date.replace('{date}', d);
+                if (!d) {
+                    msg = currentLang === 'ar' ? 'هل تريد حذف الموعد؟' : (currentLang === 'fr' ? 'Supprimer la date limite ?' : 'Clear deadline?');
+                }
+                
+                const confirmed = await customConfirm(msg);
                 if (!confirmed) return;
                 showLoading(true);
                 try {
@@ -2531,10 +2537,11 @@
                     });
                     if (res.ok) {
                         await init();
+                        alert(i18n[currentLang].alert_update_success);
                     } else {
                         alert('فشل تحديث الموعد');
-                        showLoading(false);
                     }
+                    showLoading(false);
                 } catch (e) {
                     alert('خطأ في الاتصال');
                     showLoading(false);
