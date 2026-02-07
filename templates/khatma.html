@@ -26,14 +26,31 @@
     <style>
         :root {
             --primary: #065f46;
-            /* Deep Emerald */
             --primary-light: #10b981;
             --secondary: #d97706;
-            /* Gold */
             --bg-cream: #fffbeb;
             --text-dark: #1f2937;
             --white: #ffffff;
             --border-gold: #fbbf24;
+            --card-bg: #ffffff;
+            --modal-bg: #ffffff;
+            --input-bg: #ffffff;
+            --input-border: #d1d5db;
+        }
+
+        body.dark-mode {
+            --primary: #10b981;
+            --primary-light: #34d399;
+            --secondary: #fbbf24;
+            --bg-cream: #111827;
+            --text-dark: #f9fafb;
+            --white: #1f2937;
+            /* Used for header bg mostly */
+            --border-gold: #78350f;
+            --card-bg: #1f2937;
+            --modal-bg: #1f2937;
+            --input-bg: #374151;
+            --input-border: #4b5563;
         }
 
         * {
@@ -96,10 +113,53 @@
             color: white;
             text-decoration: none;
             margin: 0 8px;
-            font-size: 0.9rem;
             font-weight: 500;
-            opacity: 0.8;
-            transition: opacity 0.2s;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            /* Positioning opposite to lang switcher based on dir */
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 50%;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        body[dir="rtl"] .theme-toggle {
+            right: auto;
+            left: 20px;
+        }
+
+        body[dir="ltr"] .theme-toggle {
+            left: auto;
+            right: 20px;
+        }
+
+        /* Adjust for when both exist */
+        body[dir="rtl"] .lang-switcher {
+            right: auto;
+            left: 70px;
+        }
+
+        body[dir="ltr"] .lang-switcher {
+            left: auto;
+            right: 70px;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
         }
 
         .lang-switcher a:hover {
@@ -921,14 +981,20 @@
 
     <header>
         <div class="lang-switcher">
-            <a href="javascript:toggleLang('ar')">العربية</a>
+            <a href="#" onclick="toggleLang('ar')" class="lang-btn active">عربي</a>
             <span style="color: rgba(255,255,255,0.4)">|</span>
-            <a href="javascript:toggleLang('en')">En</a>
+            <a href="#" onclick="toggleLang('en')" class="lang-btn">English</a>
             <span style="color: rgba(255,255,255,0.4)">|</span>
-            <a href="javascript:toggleLang('fr')">Fr</a>
+            <a href="#" onclick="toggleLang('fr')" class="lang-btn">Français</a>
         </div>
+
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+            🌙
+        </button>
+
         <div class="container">
-            <h1 data-t="header_title">ختمات القرآن الكريم</h1>
+            <h1 style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 2.5rem; margin-bottom: 10px;">{{
+                khatma.name }}</h1>
             <p class="duaa" data-t="header_sub">اللهم اجعلها ختمة مباركة في ميزان حسناتنا</p>
 
             <!-- Admin Badge & Control Panel Button -->
@@ -1325,8 +1391,6 @@
                     action_edit_name: "✏️ تعديل الاسم",
                     action_complete: "✅ إتمام",
                     action_unassign: "⚠️ إرجاع",
-                    action_complete: "✅ إتمام",
-                    action_unassign: "⚠️ إرجاع",
                     action_reset_pin: "🔑 تصفير الرمز",
                     // Alerts & Confirms
                     alert_reserved: "محجوز",
@@ -1352,12 +1416,14 @@
                     alert_enter_name: "أدخل اسمك",
                     khatma_progress: "تقدم الختمة الحالية",
                     khatma_completed_title: "🎉 تمت الختمة بفضل الله",
-                    khatma_completed_title: "🎉 تمت الختمة بفضل الله",
                     confirm_book_hizb: "هل تريد حجز الحزب {hizb} باسمك ({name})؟",
                     confirm_yes: "تأكيد",
                     confirm_cancel: "إلغاء",
                     ok: "حسناً",
-                    hizb_label: "حزب"
+                    hizb_label: "حزب",
+                    selected_hizbs: "أحزاب محددة",
+                    join_selected: "حجز المحدد",
+                    confirm_multi: "تأكيد حجز {count} أحزاب؟"
                 },
                 en: {
                     title: "Quran Khatma",
@@ -1455,10 +1521,11 @@
                     khatma_progress: "Current Khatma Progress",
                     khatma_completed_title: "🎉 Khatma Completed!",
                     confirm_book_hizb: "Do you want to book Hizb {hizb} in your name ({name})?",
-                    confirm_yes: "Confirm",
-                    confirm_cancel: "Cancel",
                     ok: "OK",
-                    hizb_label: "Hizb"
+                    hizb_label: "Hizb",
+                    selected_hizbs: "Selected Hizbs",
+                    join_selected: "Join Selected",
+                    confirm_multi: "Confirm booking {count} Hizbs?"
                 },
                 fr: {
                     title: "Khatma du Coran",
@@ -1556,10 +1623,11 @@
                     khatma_progress: "Progression de la Khatma",
                     khatma_completed_title: "🎉 Khatma Terminée !",
                     confirm_book_hizb: "Voulez-vous réserver le Hizb {hizb} à votre nom ({name}) ?",
-                    confirm_yes: "Confirmer",
-                    confirm_cancel: "Annuler",
                     ok: "OK",
-                    hizb_label: "Hizb"
+                    hizb_label: "Hizb",
+                    selected_hizbs: "Hizbs sélectionnés",
+                    join_selected: "Rejoindre",
+                    confirm_multi: "Confirmer {count} Hizbs ?"
                 }
             };
 
@@ -1570,9 +1638,25 @@
             // Global State Variables
             let myAssignments = [];
             let myCompletions = [];
-            let currentLang = localStorage.getItem('khatma_lang') || 'ar';
-            let khatmaId = "{{ khatma_id if khatma_id else '' }}";
-            if (!khatmaId) khatmaId = getKhatmaIdFromUrl();
+
+            // Global State
+            let currentLang = 'ar';
+            let khatmaId = getKhatmaIdFromUrl();
+            let hizbData = {}; // Store status of 60 hizbs
+            let isDarkMode = localStorage.getItem('dark-mode') === 'true';
+
+            // Initialize Theme
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                document.querySelector('.theme-toggle').textContent = '☀️';
+            }
+
+            function toggleTheme() {
+                isDarkMode = !isDarkMode;
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('dark-mode', isDarkMode);
+                document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+            }
             let serverVersion = 0;
             let webUserUid = localStorage.getItem('web_user_uid');
             let webUserName = localStorage.getItem('web_user_name');
@@ -2020,6 +2104,20 @@
                 }
             }
 
+            async function handleHizbClick(h) {
+                currentHizb = h;
+                if (webUserUid) {
+                    let msgTemplate = (i18n[currentLang] && i18n[currentLang].confirm_book_hizb) ? i18n[currentLang].confirm_book_hizb : "Confirm booking Hizb {hizb}?";
+                    const msg = msgTemplate.replace('{hizb}', h).replace('{name}', webUserName || 'Reader');
+                    const confirmed = await customConfirm(msg);
+                    if (confirmed) {
+                        await quickJoin(h);
+                    }
+                } else {
+                    openJoinModal(h);
+                }
+            }
+
             function updateTimer() {
                 const countdownEl = document.getElementById('countdown');
                 if (!window.hizbData || !window.hizbData.deadline || window.hizbData.deadline === 'None') {
@@ -2213,19 +2311,7 @@
                 document.getElementById('join-modal').style.display = 'flex';
             }
 
-            async function handleHizbClick(h) {
-                currentHizb = h;
-                if (webUserUid) {
-                    let msgTemplate = (i18n[currentLang] && i18n[currentLang].confirm_book_hizb) ? i18n[currentLang].confirm_book_hizb : "Confirm booking Hizb {hizb}?";
-                    const msg = msgTemplate.replace('{hizb}', h).replace('{name}', webUserName || 'Reader');
-                    const confirmed = await customConfirm(msg);
-                    if (confirmed) {
-                        await quickJoin(h);
-                    }
-                } else {
-                    openJoinModal(h);
-                }
-            }
+
 
             async function quickJoin(h) {
                 showLoading(true);
@@ -2373,7 +2459,7 @@
                             localStorage.setItem('is_admin', 'true');
                             localStorage.setItem('admin_khatma_id', khatmaId); // Store which khatma they are admin of
                             closeModal();
-                            await init(); 
+                            await init();
                             return;
                         }
 
@@ -2525,7 +2611,7 @@
                 if (!d) {
                     msg = currentLang === 'ar' ? 'هل تريد حذف الموعد؟' : (currentLang === 'fr' ? 'Supprimer la date limite ?' : 'Clear deadline?');
                 }
-                
+
                 const confirmed = await customConfirm(msg);
                 if (!confirmed) return;
                 showLoading(true);
@@ -2675,9 +2761,15 @@
                 }
             }
 
+            let isSharing = false;
+
             async function shareKhatma() {
+                if (isSharing) return;
+                isSharing = true;
+
                 const shareUrl = window.location.href;
-                const shareTitle = document.querySelector('h1[data-t="header_title"]').innerText;
+                const h1 = document.querySelector('h1');
+                const shareTitle = h1 ? h1.innerText : document.title;
 
                 // Get duaa text from header
                 const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
@@ -2695,13 +2787,18 @@
                             url: shareUrl
                         });
                     } catch (err) {
-                        console.error('Share failed:', err);
+                        if (err.name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                        }
+                    } finally {
+                        isSharing = false;
                     }
                 } else {
                     // Fallback to clipboard
                     navigator.clipboard.writeText(shareUrl).then(() => {
                         alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
-                    });
+                        isSharing = false;
+                    }).catch(() => isSharing = false);
                 }
             }
             // Removed redundant shareVia and closeShareModal functions
@@ -2906,6 +3003,9 @@
                 }
             };
         </script>
+
+    </div>
+
 </body>
 
-</html>
+</html>```
