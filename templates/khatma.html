@@ -2124,7 +2124,7 @@
                     await fetch('/api/intention/delete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: webUserUid, id: id })
+                        body: JSON.stringify({ uid: webUserUid, id: id, khatma_id: khatmaId })
                     });
                     await init();
                 } catch (e) { alert('Error'); showLoading(false); }
@@ -2148,7 +2148,7 @@
                     await fetch('/api/intention', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: webUserUid, name: webUserName, text: text })
+                        body: JSON.stringify({ uid: webUserUid, name: webUserName, text: text, khatma_id: khatmaId })
                     });
                     closeModal(); await init();
                 } catch (e) { alert('Error'); showLoading(false); }
@@ -2647,10 +2647,15 @@
 
             async function checkUpdates() {
                 try {
-                    const res = await fetch('/api/check_update');
+                    let url = `/api/check_update?t=${new Date().getTime()}`;
+                    if (khatmaId) url += `&khatma_id=${khatmaId}`;
+
+                    const res = await fetch(url);
                     const data = await res.json();
-                    if (data.version && data.version !== serverVersion) {
-                        await fetchStatus(); renderGrid(); renderParticipants();
+
+                    if (data.version && String(data.version) !== String(serverVersion)) {
+                        console.log(`Sync: version changed from ${serverVersion} to ${data.version}. Refreshing...`);
+                        await refreshData();
                     }
                 } catch (e) { console.error("Sync error", e); }
             }
@@ -2885,7 +2890,7 @@
             window.onload = () => {
                 init();
                 // checkPWAOnboarding(); // Temporarily disabled
-                setInterval(checkUpdates, 10000);
+                setInterval(checkUpdates, 5000); // More frequent checks
                 setInterval(updateTimer, 1000);
 
                 // Register PWA Service Worker

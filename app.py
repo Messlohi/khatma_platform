@@ -58,6 +58,12 @@ class DatabaseManager:
             conn.execute("PRAGMA journal_mode=WAL") # Enable WAL for better concurrency
             c = conn.cursor()
             
+            # Migration: Ensure updated_at and last_update are numeric
+            # If they are strings (like '2026-02-03...'), reset them to current time.time()
+            conn.execute("UPDATE khatmas SET updated_at = ? WHERE typeof(updated_at) = 'text'", (time.time(),))
+            conn.execute("UPDATE groups SET last_update = ? WHERE typeof(last_update) = 'text'", (time.time(),))
+            conn.commit()
+            
             # New: Khatmas table for multi-tenancy
             c.execute('''CREATE TABLE IF NOT EXISTS khatmas (
                 id TEXT PRIMARY KEY,
@@ -127,13 +133,25 @@ class DatabaseManager:
     def bump_khatma(self, khatma_id):
         if not khatma_id: return
         with self.get_connection() as conn:
-            conn.execute("UPDATE khatmas SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (khatma_id,))
+            conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             conn.commit()
 
-    def get_v(self):
-        with self.get_connection() as conn:
-            row = conn.execute("SELECT last_update FROM groups WHERE id = ?", (GLOBAL_GID,)).fetchone()
-            return row[0] if row else 0
+    def get_v(self, khatma_id=None):
+        try:
+            with self.get_connection() as conn:
+                if khatma_id:
+                    row = conn.execute("SELECT updated_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
+                    if row and row[0]:
+                        try: return float(row[0])
+                        except (ValueError, TypeError): return 0.0
+                
+                row = conn.execute("SELECT last_update FROM groups WHERE id = ?", (GLOBAL_GID,)).fetchone()
+                if row and row[0]:
+                    try: return float(row[0])
+                    except (ValueError, TypeError): return 0.0
+                return 0.0
+        except Exception:
+            return 0.0
 
     def register_user(self, user_id, full_name, username):
         with self.get_connection() as conn:
@@ -207,7 +225,6 @@ class DatabaseManager:
             else:
                 c = conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
                                (GLOBAL_GID, int(user_id), int(hizb_num)))
-            conn.commit()
             conn.commit()
             if c.rowcount > 0: self.bump(); self.bump_khatma(khatma_id); return True
         return False
@@ -517,8 +534,10 @@ class DatabaseManager:
 
     def reset_user_pin(self, user_id):
         with self.get_connection() as conn:
+            kid = conn.execute("SELECT khatma_id FROM users WHERE id = ?", (int(user_id),)).fetchone()
             conn.execute("UPDATE users SET web_pin = NULL WHERE id = ?", (int(user_id),))
             conn.commit(); self.bump()
+            if kid and kid[0]: self.bump_khatma(kid[0])
 
     def get_user_name(self, user_id):
         with self.get_connection() as conn:
@@ -527,8 +546,10 @@ class DatabaseManager:
     
     def update_user_name(self, user_id, new_name):
         with self.get_connection() as conn:
+            kid = conn.execute("SELECT khatma_id FROM users WHERE id = ?", (int(user_id),)).fetchone()
             conn.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, int(user_id)))
             conn.commit(); self.bump()
+            if kid and kid[0]: self.bump_khatma(kid[0])
 
     def get_user_hizbs(self, user_id):
         with self.get_connection() as conn:
@@ -541,22 +562,26 @@ class DatabaseManager:
             conn.execute("UPDATE settings SET value = ? WHERE key = 'total_khatmas'", (str(new_val),))
             conn.commit(); self.bump()
 
-    def add_intention(self, uid, name, text):
+    def add_intention(self, uid, name, text, khatma_id=None):
         with self.get_connection() as conn:
-            conn.execute("INSERT INTO intentions (user_id, name, text, timestamp) VALUES (?, ?, ?, ?)", 
-                         (uid, name, text, time.time()))
+            conn.execute("INSERT INTO intentions (user_id, name, text, timestamp, khatma_id) VALUES (?, ?, ?, ?, ?)", 
+                         (uid, name, text, time.time(), khatma_id))
             conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
 
-    def delete_intention(self, uid, dua_id):
+    def delete_intention(self, uid, dua_id, khatma_id=None):
         # We delete by ID andUID for security
         with self.get_connection() as conn:
             conn.execute("DELETE FROM intentions WHERE user_id = ? AND id = ?", (uid, int(dua_id)))
             conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
 
-    def get_intentions(self):
+    def get_intentions(self, khatma_id=None):
         with self.get_connection() as conn:
-            # Added id to allow safe deletion
-            rows = conn.execute("SELECT id, name, text, user_id FROM intentions ORDER BY id DESC LIMIT 50").fetchall()
+            if khatma_id:
+                rows = conn.execute("SELECT id, name, text, user_id FROM intentions WHERE khatma_id = ? ORDER BY id DESC LIMIT 50", (khatma_id,)).fetchall()
+            else:
+                rows = conn.execute("SELECT id, name, text, user_id FROM intentions WHERE khatma_id IS NULL ORDER BY id DESC LIMIT 50").fetchall()
             return [{"id": r[0], "name": r[1], "text": r[2], "uid": r[3]} for r in rows]
 
     def reset(self, khatma_id=None):
@@ -1150,7 +1175,7 @@ def api_status():
         
         # Get data - pass khatma_id if provided
         c, a, ass = db.get_status(khatma_id)
-        v = db.get_v()
+        v = db.get_v(khatma_id)
         avail = db.get_available(khatma_id)
         my_ass = db.get_user_assignments(uid, khatma_id) if uid else []
         my_comp = db.get_user_completions(uid, khatma_id) if uid else []
@@ -1168,7 +1193,7 @@ def api_status():
             intention = db.get_setting("intention") or ""
             khatma_name = "ختمة عائلة العلمي"
         
-        intentions = db.get_intentions()
+        intentions = db.get_intentions(khatma_id)
         parts = db.get_participants_activity(khatma_id) if khatma_id else db.get_participants_activity()
 
         return jsonify({
@@ -1183,7 +1208,12 @@ def api_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/check_update")
-def check_update(): return jsonify({"version": db.get_v()})
+def check_update(): 
+    khatma_id = request.args.get("khatma_id")
+    if not khatma_id: khatma_id = None
+    v = db.get_v(khatma_id)
+    # print(f"CHECK UPDATE: khatma={khatma_id} v={v}", flush=True)
+    return jsonify({"version": v})
 
 
 @app.route("/api/login", methods=["POST"])
@@ -1200,18 +1230,20 @@ def api_login():
 
 @app.route("/api/intention", methods=["POST"])
 def api_add_intention():
-    d = request.get_json(); ur = d.get("uid"); name = d.get("name"); text = d.get("text")
+    d = request.get_json(); ur = d.get("uid"); name = d.get("name"); text = d.get("text"); khatma_id = d.get("khatma_id")
+    if not khatma_id: khatma_id = None
     uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
     if not name or not text: return jsonify({"error": "Missing data"}), 400
-    db.add_intention(uid, name, text)
+    db.add_intention(uid, name, text, khatma_id)
     return jsonify({"success": True})
 
 @app.route("/api/intention/delete", methods=["POST"])
 def api_delete_intention():
-    d = request.get_json(); ur = d.get("uid"); dua_id = d.get("id")
+    d = request.get_json(); ur = d.get("uid"); dua_id = d.get("id"); khatma_id = d.get("khatma_id")
+    if not khatma_id: khatma_id = None
     uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
     if not dua_id: return jsonify({"error": "Missing ID"}), 400
-    db.delete_intention(uid, dua_id)
+    db.delete_intention(uid, dua_id, khatma_id)
     return jsonify({"success": True})
 
 @app.route("/api/join", methods=["POST"])
