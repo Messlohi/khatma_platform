@@ -1455,6 +1455,67 @@
         </div>
     </div>
 
+    <!-- Hidden template for invitation cards -->
+    <div id="invite-card-template"
+        style="position: fixed; left: -9999px; top: -9999px; width: 600px; padding: 40px; background: linear-gradient(135deg, #064e3b, #065f46); color: white; direction: rtl; font-family: 'Outfit', 'Inter', sans-serif; text-align: center;">
+        <div
+            style="border: 4px solid #fbbf24; border-radius: 20px; padding: 40px; position: relative; background: rgba(0,0,0,0.1); overflow: hidden;">
+            <div
+                style="position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: rgba(251, 191, 36, 0.1); border-radius: 50%;">
+            </div>
+            <div
+                style="position: absolute; bottom: -50px; right: -50px; width: 150px; height: 150px; background: rgba(251, 191, 36, 0.1); border-radius: 50%;">
+            </div>
+
+            <div style="font-size: 4rem; margin-bottom: 20px;">📖</div>
+            <h2 style="font-size: 2.5rem; margin-bottom: 5px;" data-t="invite_title">انضم إلينا في الختمة</h2>
+            <h3 id="ic-khatma-name" style="font-size: 1.8rem; color: #fbbf24; margin-bottom: 15px;">{{ khatma.name }}
+            </h3>
+            <div style="width: 100px; height: 2px; background: #fbbf24; margin: 15px auto;"></div>
+
+            <div id="ic-intention"
+                style="font-size: 1.3rem; line-height: 1.6; margin: 25px 0; font-style: italic; opacity: 0.95;">
+                "اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا"
+            </div>
+
+            <div
+                style="background: white; color: #065f46; display: inline-block; padding: 12px 30px; border-radius: 50px; font-weight: bold; font-size: 1.4rem; margin-bottom: 20px;">
+                <span data-t="invite_cta">ساهم معنا في الأجر ✨</span>
+            </div>
+
+            <div
+                style="margin-top: 30px; font-size: 1.1rem; border-top: 1px solid rgba(251, 191, 36, 0.3); padding-top: 15px;">
+                <div id="ic-full-url" style="color: #fbbf24; font-weight: bold;">khatma.pythonanywhere.com</div>
+                <div style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;" data-t="invite_link_note">قم بزيارة
+                    الرابط لحجز حزبك</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Options Modal -->
+    <div id="share-options-modal" class="modal">
+        <div class="modal-content" style="text-align: center; max-width: 400px;">
+            <h3 data-t="share_options_title" style="margin-bottom: 20px;">📤 خيارات المشاركة</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <button class="btn btn-primary" onclick="executeShareTextInvite()"
+                    style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0; background: #25d366;">
+                    📱 <span data-t="share_text_opt">دعوة نصية (واتساب/رسائل)</span>
+                </button>
+                <button class="btn btn-primary" onclick="handleInviteCardClick()"
+                    style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0; background: var(--secondary);">
+                    🖼️ <span data-t="share_invite_opt">بطاقة دعوة مع الرابط (صورة)</span>
+                </button>
+                <button class="btn btn-primary" onclick="executeShareLinkOnly()"
+                    style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0; background: #4b5563;">
+                    🔗 <span data-t="share_link_opt">نسخ/مشاركة الرابط فقط</span>
+                </button>
+                <button class="btn btn-outline" onclick="closeShareOptions()" style="margin-top: 10px;">
+                    <span data-t="close">إلغاء</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="achievement-modal" class="modal">
         <div class="modal-content" style="text-align: center; max-width: 400px;">
             <div style="font-size: 3.5rem; margin-bottom: 15px;">🎉</div>
@@ -1484,7 +1545,8 @@
                     style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer; margin-right:auto;">&times;</button>
             </div>
             <div class="pwa-banner-body">
-                <p data-t="onboard_text" style="font-size: 0.95rem; margin-bottom: 15px;">اجعل قراءتك أسهل وأقرب إليك.
+                <p data-t="onboard_text" style="font-size: 0.95rem; margin-bottom: 15px;">اجعل قراءتك أسهل وأقرب
+                    إليك.
                     ثبت
                     التطبيق للوصول السريع بدون انترنت.</p>
 
@@ -1585,6 +1647,15 @@
                     edit_name_title: "تعديل الاسم",
                     new_name_placeholder: "الاسم الجديد",
                     save_name: "حفظ",
+                    share_options_title: "📤 خيارات المشاركة",
+                    share_text_opt: "📱 دعوة نصية (واتساب/رسائل)",
+                    share_invite_opt: "🖼️ بطاقة دعوة مع الرابط (صورة)",
+                    share_link_opt: "🔗 نسخ/مشاركة الرابط فقط",
+                    invite_title: "انضم إلينا في الختمة",
+                    invite_cta: "ساهم معنا في الأجر ✨",
+                    invite_link_note: "قم بزيارة الرابط لحجز حزبك",
+                    share_card: "مشاركة البطاقة",
+                    download_card: "تحميل البطاقة",
                     // Admin Panel Translations
                     admin_badge: "👑 وضع المدير",
                     open_admin_panel: "⚙️ لوحة التحكم",
@@ -1691,6 +1762,15 @@
                     edit_name_title: "Edit Name",
                     new_name_placeholder: "New Name",
                     save_name: "Save",
+                    share_options_title: "📤 Share Options",
+                    share_text_opt: "📱 Text Invite (WhatsApp/SMS)",
+                    share_invite_opt: "🖼️ Invite Card with Link (Image)",
+                    share_link_opt: "🔗 Copy/Share Link Only",
+                    invite_title: "Join Our Khatma",
+                    invite_cta: "Share the Reward ✨",
+                    invite_link_note: "Visit the link to book your Hizb",
+                    share_card: "Share Card",
+                    download_card: "Download Card",
                     understand: "Understand, don't show again",
                     // Admin Panel Translations
                     admin_badge: "👑 Admin Mode",
@@ -1796,6 +1876,15 @@
                     edit_name_title: "Modifier le nom",
                     new_name_placeholder: "Nouveau nom",
                     save_name: "Enregistrer",
+                    share_options_title: "📤 Options de partage",
+                    share_text_opt: "📱 Invitation texte (WhatsApp/SMS)",
+                    share_invite_opt: "🖼️ Carte d'invitation avec lien (Image)",
+                    share_link_opt: "🔗 Copier/Partager lien uniquement",
+                    invite_title: "Rejoignez notre Khatma",
+                    invite_cta: "Partagez la récompense ✨",
+                    invite_link_note: "Visitez le lien pour réserver votre Hizb",
+                    share_card: "Partager la carte",
+                    download_card: "Télécharger la carte",
                     understand: "Compris, ne plus afficher",
                     // Admin Panel Translations
                     admin_badge: "👑 Mode Admin",
@@ -3293,42 +3382,146 @@
             let isSharing = false;
 
             async function shareKhatma() {
+                // Use flex for centering if CSS .modal has align-items: center
+                document.getElementById('share-options-modal').style.display = 'flex';
+            }
+
+            function closeShareOptions() {
+                document.getElementById('share-options-modal').style.display = 'none';
+            }
+
+            // Option 1: Full text invitation
+            async function executeShareTextInvite() {
+                closeShareOptions();
                 if (isSharing) return;
                 isSharing = true;
 
-                const shareUrl = window.location.href;
+                const shareUrl = window.location.href.split('?')[0].split('#')[0];
                 const h1 = document.querySelector('h1');
                 const shareTitle = h1 ? h1.innerText : document.title;
 
-                // Get duaa text from header
                 const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
                 const duaaText = duaaElement ? duaaElement.innerText.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim() : '';
 
-                // Combine title and duaa for share message
-                const shareText = `🕌 ${shareTitle}\n\n${duaaText}\n\n📖 ${currentLang === 'ar' ? 'شارك معنا في الختمة' : (currentLang === 'fr' ? 'Participez avec nous' : 'Join us in the Khatma')}`;
+                const shareText = `🕌 ${shareTitle}\n\n${duaaText}\n\n📖 ${currentLang === 'ar' ? 'شارك معنا في الختمة' : (currentLang === 'fr' ? 'Participez avec nous' : 'Join us in the Khatma')}\n\n${shareUrl}`;
 
-                // Try native Web Share API
                 if (navigator.share) {
                     try {
                         await navigator.share({
                             title: shareTitle,
-                            text: shareText,
-                            url: shareUrl
+                            text: shareText
                         });
                     } catch (err) {
-                        if (err.name !== 'AbortError') {
-                            console.error('Share failed:', err);
-                        }
+                        if (err.name !== 'AbortError') console.error('Share failed:', err);
                     } finally {
                         isSharing = false;
                     }
                 } else {
-                    // Fallback to clipboard
-                    navigator.clipboard.writeText(shareUrl).then(() => {
-                        alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        alert(currentLang === 'ar' ? '✅ تم نسخ نص الدعوة!' : (currentLang === 'fr' ? '✅ Invitation copiée!' : '✅ Invite text copied!'));
                         isSharing = false;
                     }).catch(() => isSharing = false);
                 }
+            }
+
+            // Option 2: Just the URL
+            async function executeShareLinkOnly() {
+                closeShareOptions();
+                const shareUrl = window.location.href.split('?')[0].split('#')[0];
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            url: shareUrl
+                        });
+                    } catch (err) {
+                        if (err.name !== 'AbortError') console.error('Share failed:', err);
+                    }
+                } else {
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        alert(currentLang === 'ar' ? '✅ تم نسخ الرابط!' : (currentLang === 'fr' ? '✅ Lien copié!' : '✅ Link copied!'));
+                    });
+                }
+            }
+
+            async function handleInviteCardClick() {
+                closeShareOptions();
+                await generateInvitationCard();
+            }
+
+            async function generateInvitationCard() {
+                showLoading(true);
+                try {
+                    // Populate template
+                    const h1 = document.querySelector('h1');
+                    document.getElementById('ic-khatma-name').innerText = h1 ? h1.innerText : i18n[currentLang].title;
+
+                    const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
+                    document.getElementById('ic-intention').innerText = duaaElement ? duaaElement.innerText : '';
+
+                    const urlDiv = document.getElementById('ic-full-url');
+                    const fullUrl = window.location.href.split('?')[0].split('#')[0];
+                    urlDiv.innerText = fullUrl.replace('https://', '').replace('http://', '');
+
+                    // Make visible for capture
+                    const template = document.getElementById('invite-card-template');
+                    template.style.left = '0';
+                    template.style.top = '0';
+
+                    const canvas = await html2canvas(template, {
+                        scale: 2,
+                        backgroundColor: null,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+
+                    // Hide template again
+                    template.style.left = '-9999px';
+                    template.style.top = '-9999px';
+
+                    // Download/Share the image
+                    const ts = new Date().getTime();
+                    const fileName = `invite_${khatmaId || 'khatma'}_${ts}.png`;
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    const file = new File([blob], fileName, { type: 'image/png' });
+
+                    const shareUrl = window.location.href.split('?')[0].split('#')[0];
+                    const shareText = `${shareUrl}\n\n${i18n[currentLang].invite_title}`;
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: i18n[currentLang].invite_title,
+                                text: shareText // This puts the link in the "comment"/caption
+                            });
+                        } catch (err) {
+                            if (err.name !== 'AbortError') downloadImage(canvas, fileName);
+                        }
+                    } else {
+                        // Fallback to download
+                        downloadImage(canvas, fileName);
+                        // Also copy link to clipboard to be helpful
+                        navigator.clipboard.writeText(shareUrl);
+                        alert(currentLang === 'ar' ? '✅ تم تحميل الصورة ونسخ الرابط!' : (currentLang === 'fr' ? '✅ Image téléchargée et lien copié !' : '✅ Image downloaded and link copied!'));
+                    }
+
+                    showLoading(false);
+                } catch (e) {
+                    console.error("Invite card generation error", e);
+                    alert(i18n[currentLang].error_generic);
+                    showLoading(false);
+                }
+            }
+
+            function downloadImage(canvas, fileName) {
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
             // Removed redundant shareVia and closeShareModal functions
 
