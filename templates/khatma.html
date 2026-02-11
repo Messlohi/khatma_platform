@@ -1436,7 +1436,8 @@
                     <span data-t="hizb">الحزب</span> <span id="sc-hizb-number">1</span>
                 </div>
                 <p id="sc-user-name" style="font-size: 1.6rem; font-weight: bold; margin-bottom: 10px;"></p>
-                <div style="margin-top: 40px; font-style: italic; opacity: 0.8; font-size: 1.1rem; line-height: 1.6;">
+                <div id="sc-intention"
+                    style="margin-top: 40px; font-style: italic; opacity: 0.8; font-size: 1.1rem; line-height: 1.6;">
                     "اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا، وجلاء أحزاننا"
                 </div>
                 <div style="margin-top: 40px; font-size: 0.9rem; opacity: 0.6;">khatma.pythonanywhere.com</div>
@@ -2960,6 +2961,7 @@
 
 
             let lastCompletedHizb = null;
+            let allCompletedHizbs = [];  // Track all completed hizb numbers
             async function markDone() {
                 showLoading(true);
                 try {
@@ -2984,6 +2986,11 @@
                     const data = await res.json();
                     if (data.success) {
                         lastCompletedHizb = "ALL";
+                        // Store all completed hizbs for the share card
+                        if (window.hizbData && window.hizbData.my_completions) {
+                            // my_completions is already an array of hizb numbers [1, 3, 5]
+                            allCompletedHizbs = window.hizbData.my_completions.sort((a, b) => a - b);
+                        }
                         closeModal(); await init();
                         showAchievement("ALL", data.completed);
                     }
@@ -3106,8 +3113,38 @@
                 const khatmaName = (window.hizbData && window.hizbData.khatma_name) || document.title.split('|')[0].trim();
 
                 document.getElementById('sc-khatma-name').innerText = khatmaName;
-                document.getElementById('sc-hizb-number').innerText = (lastCompletedHizb === "ALL" ? "✓" : lastCompletedHizb) || "?";
+
+                // Show all completed hizb numbers instead of just checkmark
+                if (lastCompletedHizb === "ALL" && allCompletedHizbs.length > 0) {
+                    document.getElementById('sc-hizb-number').innerText = allCompletedHizbs.join(', ');
+                } else if (lastCompletedHizb === "ALL") {
+                    // Fallback: fetch from current data (my_completions is already an array of numbers)
+                    const myCompletions = (window.hizbData && window.hizbData.my_completions) || [];
+                    const numbers = myCompletions.sort((a, b) => a - b);
+                    document.getElementById('sc-hizb-number').innerText = numbers.length > 0 ? numbers.join(', ') : "✓";
+                } else {
+                    document.getElementById('sc-hizb-number').innerText = lastCompletedHizb || "?";
+                }
+
+                // Update label to plural "الأحزاب" when showing multiple hizbs
+                const hizbLabel = template.querySelector('[data-t="hizb"]');
+                if (hizbLabel) {
+                    const displayedText = document.getElementById('sc-hizb-number').innerText;
+                    const hasMultiple = displayedText.includes(',') || allCompletedHizbs.length > 1;
+                    hizbLabel.innerText = hasMultiple ? "الأحزاب" : "الحزب";
+                }
+
                 document.getElementById('sc-user-name').innerText = webUserName || "";
+
+                // Set khatma intention (if available)
+                const intention = (window.hizbData && window.hizbData.intention) || "";
+                const intentionDiv = document.getElementById('sc-intention');
+                if (intentionDiv && intention && intention.trim()) {
+                    intentionDiv.innerText = intention;
+                } else if (intentionDiv) {
+                    // Keep default dua if no intention set
+                    intentionDiv.innerText = '"اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا، وجلاء أحزاننا"';
+                }
 
                 showLoading(true);
                 try {
