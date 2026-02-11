@@ -605,24 +605,29 @@ class DatabaseManager:
             if khatma_id: self.bump_khatma(khatma_id)
 
     def get_recent_activity(self, khatma_id=None, limit=5):
-        with self.get_connection() as conn:
-            # Union of joined and completed events
-            sql = """
-                SELECT 'joined' as type, u.full_name, ha.hizb_number, ha.timestamp
-                FROM hizb_assignments ha
-                JOIN users u ON ha.user_id = u.id
-                WHERE ha.khatma_id = ?
-                UNION ALL
-                SELECT 'completed' as type, u.full_name, ch.hizb_number, ch.timestamp
-                FROM completed_hizb ch
-                JOIN users u ON ch.user_id = u.id
-                WHERE ch.khatma_id = ?
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            params = (khatma_id, khatma_id, limit)
-            rows = conn.execute(sql, params).fetchall()
-            return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3]} for r in rows]
+        try:
+            with self.get_connection() as conn:
+                # Union of joined and completed events
+                sql = """
+                    SELECT 'joined' as type, u.full_name, ha.hizb_number, ha.timestamp
+                    FROM hizb_assignments ha
+                    JOIN users u ON ha.user_id = u.id
+                    WHERE ha.khatma_id = ?
+                    UNION ALL
+                    SELECT 'completed' as type, u.full_name, ch.hizb_number, ch.timestamp
+                    FROM completed_hizb ch
+                    JOIN users u ON ch.user_id = u.id
+                    WHERE ch.khatma_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """
+                params = (khatma_id, khatma_id, limit)
+                rows = conn.execute(sql, params).fetchall()
+                return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3]} for r in rows]
+        except Exception as e:
+            # If timestamp columns don't exist yet, return empty activity
+            print(f"WARNING: get_recent_activity failed (likely missing columns): {e}")
+            return []
 
     def assign_hizb(self, user_id, hizb, khatma_id=None):
         with self.get_connection() as conn:
@@ -1510,40 +1515,43 @@ def download_card():
         header, encoded = img_data.split(",", 1)
         import base64, io
         from flask import send_file, make_response
+        
+        print(f"DEBUG: Received base64 length: {len(encoded)}")
         file_bytes = base64.b64decode(encoded)
+        print(f"DEBUG: Decoded to {len(file_bytes)} bytes")
         
         buf = io.BytesIO(file_bytes)
+        buf.seek(0)  # CRITICAL: Ensure we're at the start
         
-        # Cross-version compatible send_file
+        # Try Flask 2.0+ first, fallback to older versions
         try:
-            # Flask 2.0+
-            response = send_file(
+            response = make_response(send_file(
                 buf,
                 mimetype="image/png",
                 as_attachment=True,
                 download_name=filename
-            )
+            ))
         except TypeError:
-            # Older Flask versions
+            # Older Flask - doesn't support download_name, will set via header
             buf.seek(0)
-            response = send_file(
+            response = make_response(send_file(
                 buf,
                 mimetype="image/png",
-                as_attachment=True,
-                attachment_filename=filename
-            )
-            
-        # Hardcore header override for Chrome/Safari compatibility
-        # We ensure filename is quoted to handle any potential special characters
+                as_attachment=True
+            ))
+        
+        # For older Flask versions, set attachment_filename via header
         from urllib.parse import quote
         safe_filename = quote(filename)
         response.headers["Content-Disposition"] = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{safe_filename}'
         response.headers["Content-Type"] = "image/png"
-        response.headers["Cache-Control"] = "no-cache" # Prevent caching issues
+        response.headers["Cache-Control"] = "no-cache"
+        
+        print(f"DEBUG: Sending response with {len(file_bytes)} bytes")
         return response
     except Exception as e:
         import traceback
-        traceback.print_exc() # Print full trace in server logs
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__": 

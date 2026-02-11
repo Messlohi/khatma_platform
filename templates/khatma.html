@@ -3111,30 +3111,71 @@
 
                 showLoading(true);
                 try {
-                    // Temporarily make visible for capture but off-screen
-                    template.style.left = '0';
-                    template.style.top = '0';
-                    template.style.visibility = 'hidden';
+                    // Make visible and on-screen for capture (html2canvas needs rendered elements)
+                    template.style.position = 'fixed';
+                    template.style.left = '50%';
+                    template.style.top = '50%';
+                    template.style.transform = 'translate(-50%, -50%)';
+                    template.style.zIndex = '10000';
+                    template.style.opacity = '1';  // Must be visible for capture
+                    template.style.visibility = 'visible';
+
+                    // Wait for next frame to ensure rendering
+                    await new Promise(resolve => requestAnimationFrame(resolve));
 
                     const canvas = await html2canvas(template, {
                         scale: 2,
-                        backgroundColor: null,
+                        backgroundColor: '#1a1a2e',
                         useCORS: true,
                         allowTaint: false,
+                        logging: false,
                         ignoreElements: (el) => el.tagName.toLowerCase() === 'canvas' || el.hasAttribute('data-html2canvas-ignore')
                     });
 
+                    // Hide template again
+                    template.style.position = 'absolute';
                     template.style.left = '-9999px';
-                    template.style.visibility = 'visible';
+                    template.style.top = '-9999px';
+                    template.style.transform = 'none';
+                    template.style.zIndex = '';
 
-                    const imgData = canvas.toDataURL('image/png');
+                    console.log("✅ Canvas captured:", canvas.width, "x", canvas.height);
+
+                    // Generate filename before callback
                     const safeKhatmaName = (khatmaName || "khatma").replace(/[^a-z0-9]/gi, '_').toLowerCase();
                     const hNumber = (lastCompletedHizb === "ALL" ? "all" : (lastCompletedHizb || "done"));
                     const fileName = `${safeKhatmaName}_hizb_${hNumber}.png`;
 
-                    console.log("Downloading file via hidden form:", fileName);
+                    // Convert to blob for download (better browser support for filenames)
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            throw new Error("Failed to create blob from canvas");
+                        }
+
+                        console.log("💾 Blob created, size:", blob.size, "bytes");
+
+                        // Create File object from blob (better Chrome support for filenames)
+                        const file = new File([blob], fileName, { type: 'image/png' });
+                        const url = URL.createObjectURL(file);
+
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = fileName;
+                        a.setAttribute('download', fileName);  // Redundant for maximum compatibility
+
+                        document.body.appendChild(a);
+                        a.click();
+
+                        setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                            if (a.parentNode) document.body.removeChild(a);
+                            console.log("✅ Download complete!");
+                        }, 100);
+                    }, 'image/png');
 
                     if (mode === 'share' && navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                        const imgData = canvas.toDataURL('image/png');
                         const blob = await (await fetch(imgData)).blob();
                         const file = new File([blob], fileName, { type: 'image/png' });
                         await navigator.share({
@@ -3142,31 +3183,6 @@
                             title: 'إنجاز ختمة',
                             text: `أتممت القراءة في ختمة ${khatmaName}`
                         });
-                    } else {
-                        // Failsafe: Use a hidden form to submit image data.
-                        // This triggers a standard browser navigate/download action,
-                        // which is the MOST robust way to preserve Content-Disposition names in Chrome.
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = '/api/download_card';
-                        form.style.display = 'none';
-
-                        const imgInput = document.createElement('input');
-                        imgInput.name = 'image';
-                        imgInput.value = imgData;
-                        form.appendChild(imgInput);
-
-                        const nameInput = document.createElement('input');
-                        nameInput.name = 'filename';
-                        nameInput.value = fileName;
-                        form.appendChild(nameInput);
-
-                        document.body.appendChild(form);
-                        form.submit();
-
-                        setTimeout(() => {
-                            if (form.parentNode) document.body.removeChild(form);
-                        }, 1000);
                     }
                 } catch (e) {
                     console.error("Share error:", e);
