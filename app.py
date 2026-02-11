@@ -114,6 +114,14 @@ class DatabaseManager:
             try:
                 c.execute("ALTER TABLE intentions ADD COLUMN khatma_id TEXT")
             except: pass
+            
+            # Missing columns for activity feed
+            try:
+                c.execute("ALTER TABLE hizb_assignments ADD COLUMN timestamp DATETIME DEFAULT CURRENT_TIMESTAMP")
+            except: pass
+            try:
+                c.execute("ALTER TABLE completed_hizb ADD COLUMN timestamp DATETIME DEFAULT CURRENT_TIMESTAMP")
+            except: pass
             # --------------------------------------
 
             # Migration: Ensure updated_at and last_update are numeric
@@ -1500,15 +1508,21 @@ def download_card():
             
         header, encoded = img_data.split(",", 1)
         import base64, io
-        from flask import send_file
+        from flask import send_file, make_response # Added make_response for extra header control
         file_bytes = base64.b64decode(encoded)
         
-        return send_file(
-            io.BytesIO(file_bytes),
+        # Binary data response with strict headers to force filename in Chrome
+        buf = io.BytesIO(file_bytes)
+        response = send_file(
+            buf,
             mimetype="image/png",
             as_attachment=True,
             download_name=filename
         )
+        # Force these headers as some Flask versions/environments might struggle
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        response.headers["Content-Type"] = "image/png"
+        return response
     except Exception as e:
         print(f"ERROR in download_card: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

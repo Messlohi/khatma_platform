@@ -3132,7 +3132,7 @@
                     const hNumber = (lastCompletedHizb === "ALL" ? "all" : (lastCompletedHizb || "done"));
                     const fileName = `${safeKhatmaName}_hizb_${hNumber}.png`;
 
-                    console.log("Downloading file via backend:", fileName);
+                    console.log("Downloading file via hidden form:", fileName);
 
                     if (mode === 'share' && navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
                         const blob = await (await fetch(imgData)).blob();
@@ -3143,26 +3143,30 @@
                             text: `أتممت القراءة في ختمة ${khatmaName}`
                         });
                     } else {
-                        // Failsafe: Use backend proxy to ensure filename protection via headers
-                        try {
-                            const response = await fetch('/api/download_card', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ image: imgData, filename: fileName })
-                            });
-                            if (!response.ok) throw new Error("Download failed");
+                        // Failsafe: Use a hidden form to submit image data.
+                        // This triggers a standard browser navigate/download action,
+                        // which is the MOST robust way to preserve Content-Disposition names in Chrome.
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/api/download_card';
+                        form.style.display = 'none';
 
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = fileName; // Header should win, but this is a backup
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                        } catch (err) {
-                            console.error("Backend download error:", err);
-                        }
+                        const imgInput = document.createElement('input');
+                        imgInput.name = 'image';
+                        imgInput.value = imgData;
+                        form.appendChild(imgInput);
+
+                        const nameInput = document.createElement('input');
+                        nameInput.name = 'filename';
+                        nameInput.value = fileName;
+                        form.appendChild(nameInput);
+
+                        document.body.appendChild(form);
+                        form.submit();
+
+                        setTimeout(() => {
+                            if (form.parentNode) document.body.removeChild(form);
+                        }, 1000);
                     }
                 } catch (e) {
                     console.error("Share error:", e);
