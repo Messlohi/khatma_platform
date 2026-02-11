@@ -1440,7 +1440,15 @@
                     style="margin-top: 40px; font-style: italic; opacity: 0.8; font-size: 1.1rem; line-height: 1.6;">
                     "اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا، وجلاء أحزاننا"
                 </div>
-                <div style="margin-top: 40px; font-size: 0.9rem; opacity: 0.6;">khatma.pythonanywhere.com</div>
+                <div
+                    style="margin-top: 40px; font-size: 0.9rem; opacity: 0.6; display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div style="text-align: right;">khatma.pythonanywhere.com</div>
+                    <div
+                        style="text-align: left; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 12px; font-size: 0.8rem;">
+                        <div id="sc-stats-remaining">المتبقية: 0</div>
+                        <div id="sc-stats-active">قيد القراءة: 0</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3144,6 +3152,16 @@
                 } else if (intentionDiv) {
                     // Keep default dua if no intention set
                     intentionDiv.innerText = '"اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا، وجلاء أحزاننا"';
+                }
+
+                // Set progress stats (if available)
+                if (window.hizbData) {
+                    const remainingVal = window.hizbData.remaining_count || 0;
+                    const activeVal = window.hizbData.active_count || 0;
+                    const remDiv = document.getElementById('sc-stats-remaining');
+                    const actDiv = document.getElementById('sc-stats-active');
+                    if (remDiv) remDiv.innerText = `المتبقية: ${remainingVal}`;
+                    if (actDiv) actDiv.innerText = `قيد القراءة: ${activeVal}`;
                 }
 
                 showLoading(true);
