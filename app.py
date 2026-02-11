@@ -560,10 +560,13 @@ class DatabaseManager:
             r = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
             return r[0] if r else None
     
-    def update_user_name(self, user_id, new_name):
+    def update_user_profile(self, user_id, new_name, new_pin=None):
         with self.get_connection() as conn:
             kid = conn.execute("SELECT khatma_id FROM users WHERE id = ?", (int(user_id),)).fetchone()
-            conn.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, int(user_id)))
+            if new_pin is not None:
+                conn.execute("UPDATE users SET full_name = ?, web_pin = ? WHERE id = ?", (new_name, new_pin, int(user_id)))
+            else:
+                conn.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, int(user_id)))
             conn.commit(); self.bump()
             if kid and kid[0]: self.bump_khatma(kid[0])
 
@@ -1145,6 +1148,7 @@ def update_user_name():
     data = request.get_json()
     uid = data.get("uid")
     new_name = data.get("name")
+    new_pin = data.get("pin") # Optional
     requester_uid = data.get("requester_uid")
     
     if not uid or not new_name or not requester_uid:
@@ -1155,7 +1159,7 @@ def update_user_name():
     requester_name = db.get_user_name(requester_uid)
     if str(uid) == str(requester_uid) or requester_name == "Admin":
         try:
-            db.update_user_name(uid, new_name)
+            db.update_user_profile(uid, new_name, new_pin)
             return jsonify({"success": True})
         except Exception as e:
             if "UNIQUE constraint failed" in str(e):
