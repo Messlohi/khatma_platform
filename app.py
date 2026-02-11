@@ -88,9 +88,10 @@ class DatabaseManager:
                 user_id INTEGER, 
                 hizb_number INTEGER, 
                 khatma_id TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (khatma_id, hizb_number)
             )""")
-            c.execute('CREATE TABLE IF NOT EXISTS completed_hizb (id INTEGER PRIMARY KEY AUTOINCREMENT, group_id INTEGER, user_id INTEGER, hizb_number INTEGER, khatma_id TEXT)')
+            c.execute('CREATE TABLE IF NOT EXISTS completed_hizb (id INTEGER PRIMARY KEY AUTOINCREMENT, group_id INTEGER, user_id INTEGER, hizb_number INTEGER, khatma_id TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
             c.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT, value TEXT, khatma_id TEXT, PRIMARY KEY (key, khatma_id))')
             c.execute('CREATE TABLE IF NOT EXISTS intentions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT, text TEXT, timestamp REAL, khatma_id TEXT)')
             
@@ -1508,23 +1509,41 @@ def download_card():
             
         header, encoded = img_data.split(",", 1)
         import base64, io
-        from flask import send_file, make_response # Added make_response for extra header control
+        from flask import send_file, make_response
         file_bytes = base64.b64decode(encoded)
         
-        # Binary data response with strict headers to force filename in Chrome
         buf = io.BytesIO(file_bytes)
-        response = send_file(
-            buf,
-            mimetype="image/png",
-            as_attachment=True,
-            download_name=filename
-        )
-        # Force these headers as some Flask versions/environments might struggle
-        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        
+        # Cross-version compatible send_file
+        try:
+            # Flask 2.0+
+            response = send_file(
+                buf,
+                mimetype="image/png",
+                as_attachment=True,
+                download_name=filename
+            )
+        except TypeError:
+            # Older Flask versions
+            buf.seek(0)
+            response = send_file(
+                buf,
+                mimetype="image/png",
+                as_attachment=True,
+                attachment_filename=filename
+            )
+            
+        # Hardcore header override for Chrome/Safari compatibility
+        # We ensure filename is quoted to handle any potential special characters
+        from urllib.parse import quote
+        safe_filename = quote(filename)
+        response.headers["Content-Disposition"] = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{safe_filename}'
         response.headers["Content-Type"] = "image/png"
+        response.headers["Cache-Control"] = "no-cache" # Prevent caching issues
         return response
     except Exception as e:
-        print(f"ERROR in download_card: {e}")
+        import traceback
+        traceback.print_exc() # Print full trace in server logs
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__": 
