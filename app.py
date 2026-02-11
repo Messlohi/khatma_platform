@@ -1115,7 +1115,11 @@ def admin_control():
     admin_uid = d.get("admin_uid") # NEW: Security check
     pin = d.get("admin_pin")       # NEW: Pin check
     
-    if not db.verify_admin_credentials(admin_uid, khatma_id, pin):
+    # Auth Logic: Check for Dev Key OR Admin Credentials
+    dev_key = request.headers.get("X-Dev-Key")
+    is_dev = dev_key and dev_key == DEV_ACCESS_KEY
+    
+    if not is_dev and not db.verify_admin_credentials(admin_uid, khatma_id, pin):
         return jsonify({"error": "Unauthorized"}), 403
     
     if action == "unassign":

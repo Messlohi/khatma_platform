@@ -407,6 +407,11 @@
                         <input type="date" id="edit-deadline" style="color-scheme:dark;">
                         <button class="btn-sm" onclick="saveSetting('deadline')">Set</button>
                     </div>
+                    <label>Total Khatmas</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="edit-total-khatmas" style="text-align:center;">
+                        <button class="btn-sm" onclick="saveSetting('total')">Update</button>
+                    </div>
 
                     <h4
                         style="color: var(--primary); margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
@@ -515,7 +520,7 @@
                     const progress = Math.round((k.current_progress / 60) * 100);
                     tr.innerHTML = `
                         <td><input type="checkbox" class="select-check" onchange="toggleSelect('${k.id}', this)" ${selectedKhatmas.has(k.id) ? 'checked' : ''}></td>
-                        <td style="font-family:monospace; color:var(--primary); cursor:pointer;" onclick="openDetails('${k.id}')">${k.id}</td>
+                        <td style="font-family:monospace; color:var(--primary); cursor:pointer;" onclick="window.open('/${k.id}', '_blank'); event.stopPropagation();">${k.id} ↗</td>
                         <td onclick="openDetails('${k.id}')" style="cursor:pointer;"><strong>${k.name}</strong></td>
                         <td style="text-align:center;">${k.user_count}</td>
                         <td style="color:var(--text-muted); font-size:0.85rem;">${k.updated_at ? k.updated_at.split(' ')[0] : k.created_at.split(' ')[0]}</td>
@@ -559,6 +564,7 @@
             document.getElementById('edit-admin-pin').value = d.admin.pin;
             document.getElementById('edit-intention').value = d.info.intention;
             document.getElementById('edit-deadline').value = d.info.deadline ? d.info.deadline.split(' ')[0] : '';
+            document.getElementById('edit-total-khatmas').value = d.info.total;
 
             // Render Hizb Grid
             currentHizbData = d.hizb_map; // Store for validaton
@@ -611,15 +617,29 @@
         function closeModal() { document.getElementById('details-modal').style.display = 'none'; }
 
         async function saveSetting(type) {
-            const actions = { 'intention': { a: 'update_intention', v: document.getElementById('edit-intention').value }, 'deadline': { a: 'deadline', v: document.getElementById('edit-deadline').value } };
-            const c = actions[type]; await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: c.a, hizb: c.v, khatma_id: currentKhatmaId }) }); alert("Saved");
+            const actions = {
+                'intention': { a: 'update_intention', v: document.getElementById('edit-intention').value },
+                'deadline': { a: 'deadline', v: document.getElementById('edit-deadline').value },
+                'total': { a: 'update_total', v: document.getElementById('edit-total-khatmas').value }
+            };
+            const c = actions[type];
+            await fetch('/api/admin/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+                body: JSON.stringify({ action: c.a, hizb: c.v, khatma_id: currentKhatmaId })
+            });
+            alert("Saved");
         }
         async function saveAdminPin() {
             await updateUserPin(currentAdminUid, document.getElementById('edit-admin-pin').value); alert("Admin PIN Updated");
         }
         async function updateUserPin(uid, val) {
             const pin = val || document.getElementById(`pin-${uid}`).value;
-            await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_pin', uid: uid, pin: pin, khatma_id: currentKhatmaId }) });
+            await fetch('/api/admin/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+                body: JSON.stringify({ action: 'update_pin', uid: uid, pin: pin, khatma_id: currentKhatmaId })
+            });
         }
 
         // --- Interactive Assignment ---
@@ -679,7 +699,11 @@
             if (selectionHizbs.size === 0) return alert("No hizbs selected");
 
             const hizbs = Array.from(selectionHizbs);
-            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign_bulk', uid: selectionTargetUid, hizbs: hizbs, khatma_id: currentKhatmaId }) });
+            const res = await fetch('/api/admin/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+                body: JSON.stringify({ action: 'assign_bulk', uid: selectionTargetUid, hizbs: hizbs, khatma_id: currentKhatmaId })
+            });
 
             if (res.ok) {
                 isSelectionMode = false;
@@ -693,7 +717,11 @@
         }
         async function unassignHizb(uid, h) {
             if (!confirm(`Unassign Hizb ${h}?`)) return;
-            const res = await fetch('/api/admin/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unassign', uid: uid, hizb: h, khatma_id: currentKhatmaId }) });
+            const res = await fetch('/api/admin/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Dev-Key': devKey },
+                body: JSON.stringify({ action: 'unassign', uid: uid, hizb: h, khatma_id: currentKhatmaId })
+            });
             if (res.ok) openDetails(currentKhatmaId);
         }
         async function kickUser(uid) {
