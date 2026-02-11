@@ -1444,7 +1444,7 @@
                 </div>
                 <div
                     style="margin-top: 40px; font-size: 0.9rem; opacity: 0.6; display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div style="text-align: right;">khatma.pythonanywhere.com</div>
+                    <div id="sc-full-url" style="text-align: right;">khatma.pythonanywhere.com</div>
                     <div
                         style="text-align: left; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 12px; font-size: 0.8rem;">
                         <div id="sc-stats-remaining">المتبقية: 0</div>
@@ -3175,6 +3175,13 @@
                     const actDiv = document.getElementById('sc-stats-active');
                     if (remDiv) remDiv.innerText = `المتبقية: ${remainingVal}`;
                     if (actDiv) actDiv.innerText = `قيد القراءة: ${activeVal}`;
+                }
+
+                // Set full URL on card (clean version)
+                const urlDiv = document.getElementById('sc-full-url');
+                if (urlDiv) {
+                    const fullUrl = window.location.href.split('?')[0].split('#')[0];
+                    urlDiv.innerText = fullUrl.replace('https://', '').replace('http://', '');
                 }
 
                 showLoading(true);
