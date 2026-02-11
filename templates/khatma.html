@@ -600,6 +600,45 @@
             list-style: none;
         }
 
+        /* User Menu Dropdown */
+        .user-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 5px;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            min-width: 150px;
+            z-index: 50;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        /* RTL Support for Dropdown */
+        [dir="rtl"] .user-dropdown-menu {
+            right: auto;
+            left: 0;
+            text-align: right;
+        }
+
+        .dropdown-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #374151;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+
         .participant-item {
             display: flex;
             justify-content: space-between;
@@ -1031,18 +1070,37 @@
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                 <h3 id="khatma-title" style="margin: 0;">جاري التحميل...</h3>
                 <div id="user-identity" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                    <!-- User Menu Container (Replaces individual buttons) -->
+                    <div id="user-menu-container" style="position: relative; display: inline-block;">
+                        <!-- Dropdown Button -->
+                        <button id="user-menu-btn" class="btn-outline"
+                            style="padding: 4px 10px; font-size: 0.9rem; border-radius: 10px; cursor: pointer; display: none; align-items: center; gap: 5px; background: white;"
+                            onclick="toggleUserMenu(event)">
+                            <span id="user-menu-name">User</span>
+                            <span style="font-size: 0.7rem;">▼</span>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div id="user-dropdown" class="user-dropdown-menu">
+                            <div class="dropdown-item" onclick="openEditNameModal()">
+                                ✏️ <span data-t="edit_name">تعديل الاسم</span>
+                            </div>
+                            <div style="border-top: 1px solid #eee; margin: 4px 0;"></div>
+                            <div class="dropdown-item" onclick="logout()" style="color: #ef4444;">
+                                🚪 <span data-t="logout">تسجيل خروج</span>
+                            </div>
+                        </div>
+
+                        <!-- Login Button (Visible when logged out) -->
+                        <button id="switch-btn" class="btn-outline"
+                            style="padding: 4px 10px; font-size: 0.8rem; border-radius: 10px; cursor: pointer; white-space: nowrap;"
+                            onclick="handleLoginClick()">👤 <span data-t="login_btn">دخول / تسجيل</span></button>
+                    </div>
+
+                    <!-- Share Button (Always visible) -->
                     <button id="share-btn" class="btn-outline"
                         style="padding: 4px 10px; font-size: 0.8rem; border-radius: 10px; cursor: pointer; background: var(--secondary); color: white; border-color: var(--secondary); white-space: nowrap;"
                         onclick="shareKhatma()">📤 <span data-t="share">مشاركة</span></button>
-                    <button id="switch-btn" class="btn-outline"
-                        style="padding: 4px 10px; font-size: 0.8rem; border-radius: 10px; cursor: pointer; white-space: nowrap;"
-                        onclick="handleLoginClick()">👤 دخول / تسجيل</button>
-                    <button id="edit-name-btn" class="btn-outline"
-                        style="padding: 4px 10px; font-size: 0.8rem; border-radius: 10px; cursor: pointer; display: none; white-space: nowrap;"
-                        onclick="openEditNameModal()">✏️ <span data-t="edit_name">تعديل</span></button>
-                    <button id="logout-btn" class="btn-outline"
-                        style="padding: 4px 8px; font-size: 0.8rem; border-radius: 10px; cursor: pointer; display: none; border-color: #ef4444; color: #ef4444;"
-                        onclick="logout()">❌</button>
                 </div>
             </div>
             <div class="progress-container">
@@ -1168,11 +1226,25 @@
     <div id="join-modal" class="modal">
         <div class="modal-content">
             <h3 id="modal-title" data-t="join_hizb">حجز الحزب</h3>
-            <input type="text" id="user-name" placeholder="الاسم الكامل">
-            <input type="password" id="user-pin" placeholder="رمز سري (اختياري) - 4 أرقام" maxlength="4">
-            <p style="font-size: 0.8rem; color: #6b7280; margin-top: -5px; margin-bottom: 15px;" data-t="pin_note">
-                * أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.
-            </p>
+            <input type="text" id="user-name" placeholder="الاسم الكامل" data-t="name_placeholder">
+
+            <div id="pin-toggle-div" style="text-align: right; margin-bottom: 10px;">
+                <span id="pin-toggle-btn" onclick="togglePinInput()"
+                    style="color: #6b7280; cursor: pointer; font-size: 0.75rem; text-decoration: underline; display: inline-block; line-height: 1.4;"
+                    data-t="add_pin_toggle">
+                    🔒 * أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.
+                </span>
+            </div>
+
+            <div id="pin-container" style="display: none;">
+                <input type="password" id="user-pin" placeholder="رمز سري (اختياري) - 4 أرقام" data-t="pin_placeholder"
+                    maxlength="4">
+                <p style="font-size: 0.75rem; color: #6b7280; text-align: right; margin-top: -10px; margin-bottom: 10px;"
+                    data-t="pin_note">
+                    * أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.
+                </p>
+            </div>
+
             <button class="btn btn-primary" onclick="joinHizb()" data-t="confirm_hizb">تأكيد الحجز ✅</button>
             <button class="btn btn-outline" onclick="closeModal()" data-t="close">إلغاء</button>
         </div>
@@ -1182,6 +1254,20 @@
         <div class="modal-content">
             <h3 data-t="edit_name_title">تعديل الاسم</h3>
             <input type="text" id="edit-name-input" placeholder="الاسم الجديد" data-t="new_name_placeholder">
+
+            <div id="edit-pin-toggle-div" style="text-align: right; margin-bottom: 10px;">
+                <span id="edit-pin-toggle-btn" onclick="toggleEditPinInput()"
+                    style="color: #6b7280; cursor: pointer; font-size: 0.75rem; text-decoration: underline; display: inline-block; line-height: 1.4;"
+                    data-t="add_pin_toggle">
+                    🔒 * أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.
+                </span>
+            </div>
+
+            <div id="edit-pin-container" style="display: none;">
+                <input type="text" id="edit-pin-input" placeholder="رمز سري (اختياري) - 4 أرقام"
+                    data-t="pin_placeholder" maxlength="4">
+            </div>
+
             <button class="btn btn-primary" onclick="saveNewName()" data-t="save_name">حفظ</button>
             <button class="btn btn-outline" onclick="closeEditNameModal()" data-t="close">إلغاء</button>
         </div>
@@ -1242,7 +1328,7 @@
     <!-- Custom Alert Modal (replaces native alert to prevent flickering) -->
     <div id="custom-alert-modal" class="modal">
         <div class="modal-content" style="text-align: center;">
-            <div id="alert-icon" style="font-size: 3rem; margin-bottom: 15px;">ℹ️</div>
+            <div id="alert-icon" style="font-size: 3rem; margin-bottom: 10px;">ℹ️</div>
             <h3 id="alert-title" style="margin-bottom: 15px;"></h3>
             <p id="alert-message" style="margin-bottom: 25px; color: #6b7280;"></p>
             <button class="btn btn-primary" id="alert-ok-btn" style="width: 100%;" data-t="ok">حسناً</button>
@@ -1350,6 +1436,7 @@
                     name_placeholder: "الاسم الكامل",
                     pin_placeholder: "رمز سري (اختياري) - 4 أرقام",
                     pin_note: "* أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.",
+                    add_pin_toggle: "🔒 * أضف رمزاً سرياً إذا كنت تريد التأكد من عدم قيام أي شخص آخر بتعديل أحزابك.",
                     footer: "تقبل الله طاعتكم 2026",
                     dua_placeholder: "اكتب دعاءك هنا...",
                     join_hizb: "حجز الحزب",
@@ -1451,8 +1538,9 @@
                     header_title: "Quran Khatma",
                     header_sub: "May Allah make this a blessed Khatma for all of us",
                     name_placeholder: "Full Name",
-                    pin_placeholder: "Secret Pin (Optional) - 4 digits",
-                    pin_note: "* Add a pin if you want to ensure no one else edits your hizbs.",
+                    pin_placeholder: "Secret PIN (Optional) - 4 digits",
+                    pin_note: "* Add a PIN if you want to ensure no one else can edit your Hizbs.",
+                    add_pin_toggle: "🔒 * Add a PIN to protect your Hizbs from being edited by others.",
                     footer: "May Allah accept your good deeds 2026",
                     dua_placeholder: "Write your duaa here...",
                     join_hizb: "Join Hizb",
@@ -1553,8 +1641,9 @@
                     header_title: "Khatma du Coran",
                     header_sub: "Qu'Allah fasse de cette Khatma une bénédiction pour nous tous",
                     name_placeholder: "Nom complet",
-                    pin_placeholder: "Code secret (Optionnel) - 4 chiffres",
-                    pin_note: "* Ajoutez un code si vous voulez sécuriser vos hizbs.",
+                    pin_placeholder: "Code PIN (Optionnel) - 4 chiffres",
+                    pin_note: "* Ajoutez un code PIN si vous voulez vous assurer que personne d'autre ne peut modifier vos Hizbs.",
+                    add_pin_toggle: "🔒 * Ajoutez un code PIN pour empêcher la modification de vos Hizbs.",
                     footer: "Qu'Allah accepte vos bonnes actions 2026",
                     dua_placeholder: "Écrivez votre duaa ici...",
                     join_hizb: "Rejoindre Hizb",
@@ -2000,23 +2089,28 @@
                     document.getElementById('khatma-title').innerText = comp >= 60 ? i18n[currentLang].khatma_completed_title : i18n[currentLang].khatma_progress;
 
                     // Update identity buttons
+                    // Update identity buttons
                     const switchBtn = document.getElementById('switch-btn');
-                    const logoutBtn = document.getElementById('logout-btn');
-                    if (switchBtn) {
-                        switchBtn.innerText = webUserUid ? webUserName : "👤 دخول / تسجيل";
-                        switchBtn.classList.toggle('logged-in', !!webUserUid);
-                        // Show admin link if logged in as Admin
-                        if (webUserName === "Admin") {
-                            switchBtn.innerText = "👑 لوحة التحكم";
+                    const userMenuBtn = document.getElementById('user-menu-btn');
+                    const userMenuName = document.getElementById('user-menu-name');
+
+                    if (webUserUid) {
+                        // Logged In
+                        if (switchBtn) switchBtn.style.display = 'none';
+                        if (userMenuBtn) {
+                            userMenuBtn.style.display = 'flex';
+                            if (userMenuName) userMenuName.innerText = webUserName === "Admin" ? (i18n[currentLang].admin_badge || "👑 Admin") : webUserName;
                         }
-                    }
-                    if (logoutBtn) {
-                        logoutBtn.style.display = webUserUid ? 'block' : 'none';
-                    }
-                    // Show edit name button for logged-in users (except Admin)
-                    const editNameBtn = document.getElementById('edit-name-btn');
-                    if (editNameBtn) {
-                        editNameBtn.style.display = (webUserUid && webUserName !== "Admin") ? 'block' : 'none';
+                    } else {
+                        // Logged Out
+                        if (switchBtn) {
+                            switchBtn.style.display = 'block';
+                            switchBtn.innerText = "👤 " + (i18n[currentLang].login_btn || "دخول / تسجيل");
+                        }
+                        if (userMenuBtn) userMenuBtn.style.display = 'none';
+                        // Ensure menu is closed
+                        const menu = document.getElementById('user-dropdown');
+                        if (menu) menu.style.display = 'none';
                     }
 
                     if (data.my_assignments) {
@@ -2308,7 +2402,30 @@
                     btnEl.innerText = currentLang === 'ar' ? 'تأكيد ✅' : (currentLang === 'fr' ? 'Confirmer ✅' : 'Confirm ✅');
                 }
 
+                document.getElementById('modal-title').innerText = i18n[currentLang].login;
                 document.getElementById('join-modal').style.display = 'flex';
+
+                // Reset PIN visibility for new open
+                const pinContainer = document.getElementById('pin-container');
+                const pinToggle = document.getElementById('pin-toggle-btn');
+                if (pinContainer) pinContainer.style.display = 'none';
+                if (pinToggle) {
+                    pinToggle.style.display = 'block';
+                    pinToggle.innerText = i18n[currentLang].add_pin_toggle;
+                }
+            }
+
+            function togglePinInput() {
+                const container = document.getElementById('pin-container');
+                const btn = document.getElementById('pin-toggle-btn');
+
+                if (container.style.display === 'none') {
+                    container.style.display = 'block';
+                    btn.style.display = 'none';
+                } else {
+                    container.style.display = 'none';
+                    btn.style.display = 'block';
+                }
             }
 
 
@@ -2444,12 +2561,25 @@
                     body.khatma_id = khatmaId; // Add khatma_id
 
                     const endpoint = currentHizb ? '/api/join' : '/api/login';
-                    const res = await fetch(currentHizb ? '/api/join' : '/api/login', {
+                    const res = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(body)
                     });
                     const data = await res.json();
+
+                    if (res.status === 403) { // Use status code for cleaner check
+                        showLoading(false);
+                        // Auto-show PIN input
+                        document.getElementById('pin-container').style.display = 'block';
+                        document.getElementById('pin-toggle-btn').style.display = 'none';
+                        const pinInput = document.getElementById('user-pin');
+                        pinInput.focus();
+                        // Show alert
+                        await customAlert(currentLang === 'ar' ? 'هذا الاسم محمي برمز سري. الرجاء إدخاله.' : (currentLang === 'fr' ? 'Ce nom est protégé. Entrez le code PIN.' : 'This name is protected. Please enter PIN.'), '', '🔒');
+                        return;
+                    }
+
                     if (data.success) {
                         webUserUid = data.uid; webUserName = name; webUserPin = pin;
                         localStorage.setItem('web_user_uid', webUserUid); localStorage.setItem('web_user_name', webUserName); localStorage.setItem('web_user_pin', webUserPin);
@@ -2803,11 +2933,69 @@
             }
             // Removed redundant shareVia and closeShareModal functions
 
+            function toggleUserMenu(e) {
+                e.stopPropagation();
+                const menu = document.getElementById('user-dropdown');
+                if (menu.style.display === 'block') {
+                    menu.style.display = 'none';
+                } else {
+                    menu.style.display = 'block';
+                }
+            }
+
+            // Close menu when clicking outside
+            window.addEventListener('click', function (e) {
+                const menu = document.getElementById('user-dropdown');
+                const btn = document.getElementById('user-menu-btn');
+                if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+
             function openEditNameModal() {
                 const modal = document.getElementById('edit-name-modal');
-                const input = document.getElementById('edit-name-input');
-                input.value = webUserName || '';
+                const nameInput = document.getElementById('edit-name-input');
+                const pinInput = document.getElementById('edit-pin-input');
+                const pinContainer = document.getElementById('edit-pin-container');
+                const pinToggle = document.getElementById('edit-pin-toggle-div');
+
+                nameInput.value = webUserName || '';
+                pinInput.value = webUserPin || '';
+
+                // If user has a PIN, show the input directly with a label.
+                if (webUserPin) {
+                    pinContainer.style.display = 'block';
+                    pinToggle.style.display = 'none';
+                    // Create or update label if not exists
+                    let label = document.getElementById('edit-pin-label');
+                    if (!label) {
+                        label = document.createElement('label');
+                        label.id = 'edit-pin-label';
+                        label.style.display = 'block';
+                        label.style.marginBottom = '5px';
+                        label.style.fontSize = '0.9rem';
+                        label.style.color = '#374151';
+                        // Insert before input
+                        pinInput.parentNode.insertBefore(label, pinInput);
+                    }
+                    label.innerText = currentLang === 'ar' ? 'الرمز السري (الحالي):' : (currentLang === 'fr' ? 'Code PIN (Actuel):' : 'Security PIN (Current):');
+                } else {
+                    pinContainer.style.display = 'none';
+                    pinToggle.style.display = 'block';
+                    // Remove label if it exists from previous opens
+                    const label = document.getElementById('edit-pin-label');
+                    if (label) label.remove();
+                }
+
                 modal.style.display = 'flex';
+            }
+
+            function toggleEditPinInput() {
+                const container = document.getElementById('edit-pin-container');
+                const btnDiv = document.getElementById('edit-pin-toggle-div');
+                container.style.display = 'block';
+                btnDiv.style.display = 'none';
+                document.getElementById('edit-pin-input').focus();
             }
 
             function closeEditNameModal() {
@@ -2816,11 +3004,14 @@
 
             async function saveNewName() {
                 const newName = document.getElementById('edit-name-input').value.trim();
+                const newPin = document.getElementById('edit-pin-input').value.trim();
+
                 if (!newName) {
-                    alert(currentLang === 'ar' ? 'الرجاء إدخال اسم' : (currentLang === 'fr' ? 'Veuillez entrer un nom' : 'Please enter a name'));
+                    await customAlert(currentLang === 'ar' ? 'الرجاء إدخال اسم' : (currentLang === 'fr' ? 'Veuillez entrer un nom' : 'Please enter a name'), '', '⚠️');
                     return;
                 }
-                if (newName === webUserName) {
+
+                if (newName === webUserName && newPin === (webUserPin || '')) {
                     closeEditNameModal();
                     return;
                 }
@@ -2833,32 +3024,35 @@
                         body: JSON.stringify({
                             uid: webUserUid,
                             name: newName,
+                            pin: newPin,
                             requester_uid: webUserUid
                         })
                     });
                     const data = await res.json();
                     if (data.success) {
                         webUserName = newName;
-                        localStorage.setItem('user_name', newName);
+                        webUserPin = newPin; // Update local state
+                        localStorage.setItem('web_user_name', newName);
+                        if (newPin) localStorage.setItem('web_user_pin', newPin);
+                        else localStorage.removeItem('web_user_pin');
 
                         // Update button text immediately
-                        const switchBtn = document.getElementById('switch-btn');
-                        if (switchBtn) switchBtn.innerText = webUserName;
+                        const userMenuName = document.getElementById('user-menu-name');
+                        if (userMenuName) userMenuName.innerText = webUserName === "Admin" ? (i18n[currentLang].admin_badge || "👑 Admin") : webUserName;
 
                         closeEditNameModal();
                         await init();
-                        alert(currentLang === 'ar' ? '✅ تم تحديث الاسم بنجاح' : (currentLang === 'fr' ? '✅ Nom mis à jour' : '✅ Name updated successfully'));
+                        await customAlert(currentLang === 'ar' ? '✅ تم تحديث الملف الشخصي بنجاح' : (currentLang === 'fr' ? '✅ Profil mis à jour' : '✅ Profile updated successfully'), '', '✅');
                     } else {
-                        // Show specific error message for duplicate names
                         if (data.error === "Name already taken") {
-                            alert(currentLang === 'ar' ? '❌ هذا الاسم مستخدم بالفعل' : (currentLang === 'fr' ? '❌ Ce nom est déjà utilisé' : '❌ Name already taken'));
+                            await customAlert(currentLang === 'ar' ? '❌ هذا الاسم مستخدم بالفعل' : (currentLang === 'fr' ? '❌ Ce nom est déjà utilisé' : '❌ Name already taken'), '', '❌');
                         } else {
-                            alert(data.error || (currentLang === 'ar' ? 'فشل تحديث الاسم' : (currentLang === 'fr' ? 'Échec de la mise à jour' : 'Failed to update name')));
+                            await customAlert(data.error || (currentLang === 'ar' ? 'فشل التحديث' : (currentLang === 'fr' ? 'Échec de la mise à jour' : 'Failed to update')), '', '❌');
                         }
                     }
                     showLoading(false);
                 } catch (e) {
-                    alert(currentLang === 'ar' ? 'خطأ في الاتصال' : (currentLang === 'fr' ? 'Erreur de connexion' : 'Connection error'));
+                    await customAlert(currentLang === 'ar' ? 'خطأ في الاتصال' : (currentLang === 'fr' ? 'Erreur de connexion' : 'Connection error'), '', '❌');
                     showLoading(false);
                 }
             }
