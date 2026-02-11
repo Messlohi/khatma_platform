@@ -23,6 +23,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#065f46">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         :root {
             --primary: #065f46;
@@ -851,6 +852,45 @@
             min-width: 65px;
         }
 
+        /* Activity Feed */
+        .activity-feed {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            display: none;
+            overflow: hidden;
+            border: 1px solid rgba(6, 95, 70, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            font-size: 0.85rem;
+            color: #374151;
+            text-align: center;
+        }
+
+        .activity-item {
+            display: none;
+            animation: slideInActivity 0.4s ease-out;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .activity-item.active {
+            display: block;
+        }
+
+        @keyframes slideInActivity {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .timer-val {
             font-size: 1.5rem;
             line-height: 1;
@@ -1050,6 +1090,7 @@
         </div>
     </header>
 
+
     <div class="container">
         <div id="countdown" class="countdown-card" style="display: none;">
             <div class="countdown-title">⏳ <span data-t="remaining">الوقت المتبقي لختم القرآن</span></div>
@@ -1062,6 +1103,10 @@
                         data-t="minutes">دقيقة</span></div>
                 <div class="timer-unit"><span id="seconds" class="timer-val">0</span><span class="timer-label"
                         data-t="seconds">ثانية</span></div>
+            </div>
+            <div id="goal-speed"
+                style="margin-top: 15px; font-size: 0.9rem; background: rgba(0,0,0,0.1); padding: 5px 15px; border-radius: 20px; display: inline-block;">
+                <!-- Speed recommendation will go here -->
             </div>
         </div>
 
@@ -1293,9 +1338,29 @@
         <div class="nav-item" onclick="scrollToSec('stats-section')">📊 <span data-t="nav_stats">الإحصائيات</span></div>
         <div class="nav-item" onclick="scrollToSec('hizb-views-section')">📖 <span data-t="nav_hizbs">الأحزاب</span>
         </div>
+        <div class="nav-item" onclick="scrollToSec('activity-section')">⚡ <span data-t="nav_activity">النشاط</span>
+        </div>
         <div class="nav-item" onclick="scrollToSec('readers-section')">👤 <span data-t="nav_readers">القراء</span></div>
         <div class="nav-item" onclick="scrollToSec('duaa-section')">🤲 <span data-t="nav_duaa">الدعاء</span></div>
     </nav>
+
+    <div id="activity-section" class="container" style="margin-top: 30px; margin-bottom: 40px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; justify-content: center;">
+            <div style="flex: 1; height: 1px; background: linear-gradient(to left, transparent, var(--secondary));">
+            </div>
+            <h3 data-t="recent_activity_title" style="margin: 0; font-family: 'Outfit', sans-serif; font-weight: 600;">⚡
+                الأنشطة</h3>
+            <div style="flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--secondary));">
+            </div>
+        </div>
+        <div id="activity-feed" class="activity-feed"
+            style="background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 15px; min-height: 60px; border: 1px solid rgba(0,0,0,0.05);">
+            <div id="activity-list" class="activity-list"
+                style="position: relative; max-height: 400px; overflow-y: auto;">
+                <!-- Activity will go here -->
+            </div>
+        </div>
+    </div>
 
     <footer>
         <p data-t="footer">تقبل الله طاعتكم 2026</p>
@@ -1346,6 +1411,55 @@
                     data-t="confirm_yes">تأكيد</button>
                 <button class="btn btn-outline" id="confirm-no-btn" style="flex: 1;"
                     data-t="confirm_cancel">إلغاء</button>
+            </div>
+        </div>
+    </div>
+    <!-- Hidden template for generating sharing cards -->
+    <div id="share-card-template"
+        style="position: fixed; left: -9999px; top: -9999px; width: 600px; padding: 40px; background: linear-gradient(135deg, #065f46, #064e3b); color: white; direction: rtl; font-family: 'Outfit', 'Inter', sans-serif;">
+        <div
+            style="border: 4px solid #fbbf24; border-radius: 20px; padding: 40px; position: relative; background: rgba(0,0,0,0.1); overflow: hidden;">
+            <div
+                style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(251, 191, 36, 0.1); border-radius: 50%;">
+            </div>
+            <div
+                style="position: absolute; bottom: -50px; left: -50px; width: 150px; height: 150px; background: rgba(251, 191, 36, 0.1); border-radius: 50%;">
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 4rem; margin-bottom: 20px;">🕌</div>
+                <h2 id="sc-khatma-name" style="font-size: 2.2rem; margin-bottom: 5px;">{{ khatma.name }}</h2>
+                <div style="width: 100px; height: 2px; background: #fbbf24; margin: 15px auto;"></div>
+                <p style="font-size: 1.4rem; opacity: 0.9; margin-bottom: 30px;" data-t="sc_completed_text">الحمد لله،
+                    لقد أتممت قراءة:</p>
+                <div
+                    style="background: white; color: #065f46; display: inline-block; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 2rem; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                    <span data-t="hizb">الحزب</span> <span id="sc-hizb-number">1</span>
+                </div>
+                <p id="sc-user-name" style="font-size: 1.6rem; font-weight: bold; margin-bottom: 10px;"></p>
+                <div style="margin-top: 40px; font-style: italic; opacity: 0.8; font-size: 1.1rem; line-height: 1.6;">
+                    "اللهم اجعل القرآن ربيع قلوبنا، ونور صدورنا، وجلاء أحزاننا"
+                </div>
+                <div style="margin-top: 40px; font-size: 0.9rem; opacity: 0.6;">khatma.pythonanywhere.com</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="achievement-modal" class="modal">
+        <div class="modal-content" style="text-align: center; max-width: 400px;">
+            <div style="font-size: 3.5rem; margin-bottom: 15px;">🎉</div>
+            <h3 data-t="achievement_title">تقبل الله طاعتكم!</h3>
+            <p id="achievement-text" style="color: #6b7280; margin-bottom: 25px;"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" onclick="generateShareCard('share')"
+                    style="background: var(--secondary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    📤 <span data-t="share_card">مشاركة البطاقة</span>
+                </button>
+                <button class="btn btn-outline" onclick="generateShareCard('download')"
+                    style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    📥 <span data-t="download_card">تحميل البطاقة</span>
+                </button>
+                <button class="btn btn-ghost" onclick="closeAchievementModal()" data-t="close"
+                    style="color: #6b7280; margin-top: 5px;">إغلاق</button>
             </div>
         </div>
     </div>
@@ -1429,6 +1543,8 @@
                     nav_hizbs: "الأحزاب",
                     nav_readers: "القراء",
                     nav_duaa: "الدعاء",
+                    nav_activity: "النشاط",
+                    recent_activity_title: "⚡ الأنشطة",
                     add_dua_title: "إضافة دعاء أو نية",
                     confirm: "تأكيد ✅",
                     header_title: "ختمات القرآن الكريم",
@@ -1533,6 +1649,8 @@
                     nav_hizbs: "Hizbs",
                     nav_readers: "Readers",
                     nav_duaa: "Duaa",
+                    nav_activity: "Activity",
+                    recent_activity_title: "⚡ Recent Activity",
                     add_dua_title: "Add Intention or Duaa",
                     confirm: "Confirm ✅",
                     header_title: "Quran Khatma",
@@ -1636,6 +1754,8 @@
                     nav_hizbs: "Hizbs",
                     nav_readers: "Lecteurs",
                     nav_duaa: "Duaa",
+                    nav_activity: "Activity",
+                    recent_activity_title: "⚡ Activités Récentes",
                     add_dua_title: "Ajouter une intention ou Duaa",
                     confirm: "Confirmer ✅",
                     header_title: "Khatma du Coran",
@@ -1949,9 +2069,9 @@
 
                     // Read button HTML
                     const readBtnHtml = `
-                    <button onclick="event.stopPropagation(); openReadModal(${i});" 
+                    <button onclick="event.stopPropagation(); openReadModal(${i});"
                         style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.85rem; margin-left: 8px; transition: 0.2s; display: flex; align-items: center; gap: 4px;"
-                        onmouseover="this.style.background='#047857'" 
+                        onmouseover="this.style.background='#047857'"
                         onmouseout="this.style.background='var(--primary)'"
                         title="${currentLang === 'ar' ? 'اقرأ الآن' : (currentLang === 'fr' ? 'Lire maintenant' : 'Read now')}">
                         📖
@@ -2141,6 +2261,10 @@
                             duaaElement.innerHTML = data.intention.replace(/\n/g, '<br>');
                         }
                     }
+
+                    if (data.recent_activity) {
+                        renderActivityFeed(data.recent_activity);
+                    }
                 } catch (e) {
                     console.error("Fetch error:", e);
                     document.getElementById('khatma-title').innerText = "خطأ في المزامنة";
@@ -2243,45 +2367,52 @@
                 document.getElementById('hours').innerText = hours;
                 document.getElementById('minutes').innerText = minutes;
                 document.getElementById('seconds').innerText = seconds;
+
+                // Calculate Speed Goal
+                const totalRem = 60 - (window.hizbData.completed_count || 0);
+                const daysRemaining = diff / (1000 * 60 * 60 * 24);
+                const speedEl = document.getElementById('goal-speed');
+
+                if (totalRem > 0 && daysRemaining > 0) {
+                    const speed = (totalRem / daysRemaining).toFixed(1);
+                    if (currentLang === 'ar') {
+                        speedEl.innerHTML = `🚀 نحتاج لقراءة <b>${speed}</b> حزب يومياً للختم في الموعد!`;
+                    } else if (currentLang === 'fr') {
+                        speedEl.innerHTML = `🚀 Il faut lire <b>${speed}</b> hizbs/jour pour finir à temps !`;
+                    } else {
+                        speedEl.innerHTML = `🚀 Need to read <b>${speed}</b> hizbs/day to finish on time!`;
+                    }
+                    speedEl.style.display = 'inline-block';
+                } else {
+                    speedEl.style.display = 'none';
+                }
             }
 
             function renderParticipants() {
+                if (!window.hizbData || !window.hizbData.participants) return;
                 const list = document.getElementById('participant-list'); list.innerHTML = '';
+                const parts = window.hizbData.participants;
+                if (parts.length === 0) { list.innerHTML = `<p style="text-align: center; color: #9ca3af;">${i18n[currentLang].no_readers}</p>`; return; }
 
-                // Prioritize the new "participants" list if available (Backend v2)
-                if (window.hizbData.participants) {
-                    const parts = window.hizbData.participants;
-                    if (parts.length === 0) { list.innerHTML = `<p style="text-align: center; color: #9ca3af;">${i18n[currentLang].no_readers}</p>`; return; }
+                parts.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
+                    const item = document.createElement('div'); item.className = 'participant-item';
+                    let html = `<strong>${p.name}</strong><div style="font-size:0.9rem;">`;
 
-                    parts.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
-                        const item = document.createElement('div'); item.className = 'participant-item';
-                        let html = `<strong>${p.name}</strong><div style="font-size:0.9rem;">`;
+                    // Active Hizbs (Orange)
+                    if (p.active && p.active.length > 0) {
+                        html += `<span style="color:var(--secondary); margin-left:8px;">⏳ ${p.active.join(', ')}</span>`;
+                    }
 
-                        // Active Hizbs (Orange)
-                        if (p.active && p.active.length > 0) {
-                            html += `<span style="color:var(--secondary); margin-left:8px;">⏳ ${p.active.join(', ')}</span>`;
-                        }
+                    // Completed Hizbs (Green)
+                    if (p.completed && p.completed.length > 0) {
+                        const lbl = currentLang === 'ar' ? 'تم' : (currentLang === 'fr' ? 'Fait' : 'Done');
+                        html += `<span style="color:var(--primary); font-weight:bold;">✅ ${lbl} ${p.completed.join(', ')}</span>`;
+                    }
 
-                        // Completed Hizbs (Green)
-                        if (p.completed && p.completed.length > 0) {
-                            const lbl = currentLang === 'ar' ? 'تم' : (currentLang === 'fr' ? 'Fait' : 'Done');
-                            html += `<span style="color:var(--primary); font-weight:bold;">✅ ${lbl} ${p.completed.join(', ')}</span>`;
-                        }
-
-                        html += `</div>`;
-                        item.innerHTML = html;
-                        list.appendChild(item);
-                    });
-                } else {
-                    // Fallback to old behavior (Active only)
-                    const entries = Object.entries(window.hizbData.assignments || {});
-                    if (entries.length === 0) { list.innerHTML = `<p style="text-align: center; color: #9ca3af;">${i18n[currentLang].no_readers}</p>`; return; }
-                    entries.sort().forEach(([name, hizbs]) => {
-                        const item = document.createElement('div'); item.className = 'participant-item';
-                        item.innerHTML = `<strong>${name}</strong><span style="color:var(--secondary)">${currentLang === 'ar' ? 'الأحزاب' : (currentLang === 'fr' ? 'Hizbs' : 'Hizbs')}: ${hizbs.join(', ')}</span>`;
-                        list.appendChild(item);
-                    });
-                }
+                    html += `</div>`;
+                    item.innerHTML = html;
+                    list.appendChild(item);
+                });
             }
 
             function renderDuaas(intentions) {
@@ -2828,14 +2959,17 @@
             }
 
 
+            let lastCompletedHizb = null;
             async function markDone() {
                 showLoading(true);
                 try {
-                    const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: currentHizb, khatma_id: khatmaId }) });
+                    const hizbToComplete = currentHizb;
+                    const res = await fetch('/api/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, hizb: hizbToComplete, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) {
-                        if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
+                        lastCompletedHizb = hizbToComplete;
                         closeModal(); await init();
+                        showAchievement(hizbToComplete, data.completed);
                     }
                     else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
                 } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
@@ -2849,8 +2983,9 @@
                     const res = await fetch('/api/done_all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: webUserUid, khatma_id: khatmaId }) });
                     const data = await res.json();
                     if (data.success) {
-                        if (data.completed) alert(i18n[currentLang].alert_khatma_completed);
+                        lastCompletedHizb = "ALL";
                         closeModal(); await init();
+                        showAchievement("ALL", data.completed);
                     }
                     else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
                 } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
@@ -2866,6 +3001,175 @@
                     if (data.success) { closeModal(); await init(); }
                     else { showLoading(false); alert(data.error || i18n[currentLang].error_generic); }
                 } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
+            }
+
+            let activityIndex = 0;
+            let activityInterval = null;
+
+            function renderActivityFeed(activities) {
+                const feed = document.getElementById('activity-feed');
+                const list = document.getElementById('activity-list');
+
+                if (!activities || activities.length === 0) {
+                    feed.style.display = 'none';
+                    return;
+                }
+
+                feed.style.display = 'block';
+                list.innerHTML = '';
+
+                activities.forEach(act => {
+                    const div = document.createElement('div');
+                    div.className = 'activity-item';
+                    const timeStr = formatRelativeTime(act.timestamp);
+                    const typeIcon = act.type === 'joined' ? '🤝' : '✅';
+                    let actionText = "";
+
+                    if (currentLang === 'ar') {
+                        actionText = act.type === 'joined' ? 'حجز الحزب' : 'أتمّ الحزب';
+                    } else if (currentLang === 'fr') {
+                        actionText = act.type === 'joined' ? 'a réservé le Hizb' : 'a terminé le Hizb';
+                    } else {
+                        actionText = act.type === 'joined' ? 'joined Hizb' : 'completed Hizb';
+                    }
+
+                    div.innerHTML = `<strong>${act.name}</strong> ${actionText} <strong>${act.hizb}</strong> <span style="font-size: 0.75rem; color: #6b7280; margin: 0 5px;">${timeStr}</span> ${typeIcon}`;
+                    list.appendChild(div);
+                });
+
+                startActivityTicker();
+            }
+
+            function startActivityTicker() {
+                if (activityInterval) clearInterval(activityInterval);
+                const items = document.querySelectorAll('.activity-item');
+                if (items.length === 0) return;
+
+                activityIndex = 0;
+                items.forEach(it => it.classList.remove('active'));
+                items[0].classList.add('active');
+
+                if (items.length > 1) {
+                    activityInterval = setInterval(() => {
+                        items[activityIndex].classList.remove('active');
+                        activityIndex = (activityIndex + 1) % items.length;
+                        items[activityIndex].classList.add('active');
+                    }, 4000);
+                }
+            }
+
+            function formatRelativeTime(ts) {
+                if (!ts) return "";
+                try {
+                    const now = new Date();
+                    const date = new Date(ts.replace(" ", "T") + "Z");
+                    const diff = Math.floor((now - date) / 1000);
+
+                    if (isNaN(diff)) return "";
+                    if (diff < 60) return currentLang === 'ar' ? 'الآن' : 'Just now';
+                    if (diff < 3600) return Math.floor(diff / 60) + "m";
+                    if (diff < 86400) return Math.floor(diff / 3600) + "h";
+                    return Math.floor(diff / 86400) + "d";
+                } catch (e) { return ""; }
+            }
+
+            function showAchievement(hizb, isKhatmaFinished) {
+                const modal = document.getElementById('achievement-modal');
+                const text = document.getElementById('achievement-text');
+
+                let msg = "";
+                if (currentLang === 'ar') {
+                    if (hizb === "ALL") msg = "لقد أتممت قراءة جميع أحزابك المحجوزة! تقبل الله منك.";
+                    else msg = `أتممت قراءة الحزب ${hizb} بنجاح.`;
+                    if (isKhatmaFinished) msg += " 🎉 مبروك! تم ختم القرآن بالكامل في هذه الختمة.";
+                } else if (currentLang === 'fr') {
+                    if (hizb === "ALL") msg = "Vous avez terminé tous vos Hizbs réservés ! Qu'Allah accepte.";
+                    else msg = `Vous avez terminé la lecture du Hizb ${hizb}.`;
+                    if (isKhatmaFinished) msg += " 🎉 Félicitations ! La Khatma est terminée.";
+                } else {
+                    if (hizb === "ALL") msg = "You have completed all your reserved Hizbs! May Allah accept.";
+                    else msg = `You have completed reading Hizb ${hizb}.`;
+                    if (isKhatmaFinished) msg += " 🎉 Congratulations! The Khatma is fully finished.";
+                }
+
+                text.innerText = msg;
+                modal.style.display = 'flex';
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10001 });
+            }
+
+            function closeAchievementModal() {
+                document.getElementById('achievement-modal').style.display = 'none';
+            }
+
+            async function generateShareCard(mode = 'download') {
+                const template = document.getElementById('share-card-template');
+                const khatmaName = (window.hizbData && window.hizbData.khatma_name) || document.title.split('|')[0].trim();
+
+                document.getElementById('sc-khatma-name').innerText = khatmaName;
+                document.getElementById('sc-hizb-number').innerText = (lastCompletedHizb === "ALL" ? "✓" : lastCompletedHizb) || "?";
+                document.getElementById('sc-user-name').innerText = webUserName || "";
+
+                showLoading(true);
+                try {
+                    // Temporarily make visible for capture but off-screen
+                    template.style.left = '0';
+                    template.style.top = '0';
+                    template.style.visibility = 'hidden';
+
+                    const canvas = await html2canvas(template, {
+                        scale: 2,
+                        backgroundColor: null,
+                        useCORS: true,
+                        allowTaint: false,
+                        ignoreElements: (el) => el.tagName.toLowerCase() === 'canvas' || el.hasAttribute('data-html2canvas-ignore')
+                    });
+
+                    template.style.left = '-9999px';
+                    template.style.visibility = 'visible';
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const safeKhatmaName = (khatmaName || "khatma").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    const hNumber = (lastCompletedHizb === "ALL" ? "all" : (lastCompletedHizb || "done"));
+                    const fileName = `${safeKhatmaName}_hizb_${hNumber}.png`;
+
+                    console.log("Downloading file via backend:", fileName);
+
+                    if (mode === 'share' && navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                        const blob = await (await fetch(imgData)).blob();
+                        const file = new File([blob], fileName, { type: 'image/png' });
+                        await navigator.share({
+                            files: [file],
+                            title: 'إنجاز ختمة',
+                            text: `أتممت القراءة في ختمة ${khatmaName}`
+                        });
+                    } else {
+                        // Failsafe: Use backend proxy to ensure filename protection via headers
+                        try {
+                            const response = await fetch('/api/download_card', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ image: imgData, filename: fileName })
+                            });
+                            if (!response.ok) throw new Error("Download failed");
+
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName; // Header should win, but this is a backup
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        } catch (err) {
+                            console.error("Backend download error:", err);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Share error:", e);
+                    alert("Error: " + e.message);
+                } finally {
+                    showLoading(false);
+                }
             }
 
             async function checkUpdates() {
