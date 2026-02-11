@@ -4,7 +4,7 @@ import datetime
 import asyncio
 import logging
 import time
-from flask import Flask, request, render_template, jsonify, Response
+from flask import Flask, request, render_template, jsonify, Response, send_file
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
@@ -594,6 +594,54 @@ class DatabaseManager:
             conn.execute("DELETE FROM intentions WHERE user_id = ? AND id = ?", (uid, int(dua_id)))
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
+
+    def get_recent_activity(self, khatma_id=None, limit=5):
+        with self.get_connection() as conn:
+            # Union of joined and completed events
+            sql = """
+                SELECT 'joined' as type, u.full_name, ha.hizb_number, ha.timestamp
+                FROM hizb_assignments ha
+                JOIN users u ON ha.user_id = u.id
+                WHERE ha.khatma_id = ?
+                UNION ALL
+                SELECT 'completed' as type, u.full_name, ch.hizb_number, ch.timestamp
+                FROM completed_hizb ch
+                JOIN users u ON ch.user_id = u.id
+                WHERE ch.khatma_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            params = (khatma_id, khatma_id, limit)
+            rows = conn.execute(sql, params).fetchall()
+            return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3]} for r in rows]
+
+    def assign_hizb(self, user_id, hizb, khatma_id=None):
+        with self.get_connection() as conn:
+            # Check availability
+            row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
+            if row: return False
+            conn.execute("INSERT INTO hizb_assignments (user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, datetime('now'))", (user_id, hizb, khatma_id))
+            conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
+            return True
+
+    def mark_done(self, user_id, hizb, khatma_id=None):
+        with self.get_connection() as conn:
+             # Verify assignment? Not strictly needed for bot but good practice
+            conn.execute("INSERT INTO completed_hizb (user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, datetime('now'))", (user_id, hizb, khatma_id))
+            conn.execute("DELETE FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id))
+            
+            # Check for khatma completion
+            count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
+            
+            completed = False
+            if count >= 60:
+                completed = True
+            
+            conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
+            
+            return "completed" if completed else True
 
     def get_intentions(self, khatma_id=None):
         with self.get_connection() as conn:
@@ -1262,13 +1310,15 @@ def api_status():
         
         intentions = db.get_intentions(khatma_id)
         parts = db.get_participants_activity(khatma_id) if khatma_id else db.get_participants_activity()
+        recent_activity = db.get_recent_activity(khatma_id)
 
         return jsonify({
             "completed_count": int(c), "active_count": int(a), "remaining_count": 60-int(c)-int(a),
             "version": v or 0, "assignments": ass, "available_hizbs": avail, 
             "my_assignments": my_ass, "my_completions": my_comp,
             "deadline": deadline, "total_khatmas": total or 0, "intentions": intentions,
-            "participants": parts, "intention": intention, "khatma_name": khatma_name
+            "participants": parts, "intention": intention, "khatma_name": khatma_name,
+            "recent_activity": recent_activity
         })
     except Exception as e:
         print(f"DEBUG: api_status failed: {e}")
@@ -1432,6 +1482,36 @@ def api_return():
 if application:
     async def init_b(): await application.initialize(); await application.start()
     loop = asyncio.get_event_loop(); loop.run_until_complete(init_b())
+
+@app.route("/api/download_card", methods=["POST"])
+def download_card():
+    try:
+        # Support both JSON (fetch) and Form (hidden form) for maximum robustness
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
+            
+        img_data = data.get("image")
+        filename = data.get("filename", "khatma_card.png")
+        
+        if not img_data or "," not in img_data:
+            return jsonify({"success": False, "error": "Invalid image data"}), 400
+            
+        header, encoded = img_data.split(",", 1)
+        import base64, io
+        from flask import send_file
+        file_bytes = base64.b64decode(encoded)
+        
+        return send_file(
+            io.BytesIO(file_bytes),
+            mimetype="image/png",
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"ERROR in download_card: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__": 
     app.run(port=5000, debug=True)
