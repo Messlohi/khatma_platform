@@ -1238,17 +1238,17 @@
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="date" id="admin-deadline"
                         style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                    <button class="btn btn-primary" style="padding: 10px;" onclick="adminSetDeadline()"
-                        data-t="update_deadline">تحديث
+                    <button class="btn btn-primary" style="padding: 10px; width: auto; margin: 0;"
+                        onclick="adminSetDeadline()" data-t="update_deadline">تحديث
                         الموعد</button>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
                     <label style="font-weight: 600; min-width: 150px;" data-t="completed_khatmas">عدد الختمات
                         المكتملة:</label>
                     <input type="number" id="admin-total-khatmas" min="0" step="1" inputmode="numeric"
-                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-                    <button class="btn btn-primary" style="padding: 10px;" onclick="adminUpdateTotalKhatmas()"
-                        data-t="update_btn">تحديث</button>
+                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; color: #374151; min-width: 80px; text-align: center;">
+                    <button class="btn btn-primary" style="padding: 10px; width: auto; margin: 0;"
+                        onclick="adminUpdateTotalKhatmas()" data-t="update_btn">تحديث</button>
                 </div>
                 <div style="margin-top: 15px;">
                     <label style="font-weight: 600; display: block; margin-bottom: 5px;"
@@ -1256,9 +1256,11 @@
                     <textarea id="admin-intention" rows="4"
                         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button class="btn btn-primary" onclick="adminUpdateIntention()" data-t="update_intention">تحديث
+                        <button class="btn btn-primary" style="flex: 1; margin: 0;" onclick="adminUpdateIntention()"
+                            data-t="update_intention">تحديث
                             النية</button>
-                        <button class="btn btn-outline" onclick="resetIntentionToDefault()">إعادة الافتراضي</button>
+                        <button class="btn btn-outline" style="flex: 1; margin: 0;"
+                            onclick="resetIntentionToDefault()">إعادة الافتراضي</button>
                     </div>
                 </div>
             </div>
@@ -2146,7 +2148,7 @@
                 }
             }
 
-            async function init() {
+            async function init(shouldOpenAdmin = false) {
                 const debugEl = document.getElementById('debug-khatma-id');
                 if (debugEl) debugEl.innerText = khatmaId || "Global";
                 updateUI();
@@ -2163,7 +2165,7 @@
                         renderGrid();
                         renderParticipants();
                         showLoading(false);
-                        openAdmin(); // Open control panel
+                        if (shouldOpenAdmin) openAdmin(); // Open control panel only if explicitly requested
                         return;
                     }
 
@@ -2786,16 +2788,27 @@
                 // Scroll control panel to top of page
                 document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                document.getElementById('admin-deadline').value = window.hizbData.deadline.split(' ')[0];
+                // Set deadline - guard for focus
+                const deadlineInput = document.getElementById('admin-deadline');
+                if (document.activeElement !== deadlineInput && window.hizbData.deadline) {
+                    deadlineInput.value = window.hizbData.deadline.split(' ')[0];
+                }
 
-                // Set total khatmas - ensure it shows even if 0
-                const totalKhatmas = parseInt(window.hizbData.total_khatmas) || 0;
-                document.getElementById('admin-total-khatmas').value = totalKhatmas;
+                // Set total khatmas - ensure it shows even if 0. 
+                // CRITICAL: Don't overwrite if user is currently typing!
+                const totalInput = document.getElementById('admin-total-khatmas');
+                if (document.activeElement !== totalInput) {
+                    const totalKhatmas = parseInt(window.hizbData.total_khatmas) || 0;
+                    totalInput.value = totalKhatmas;
+                }
 
                 // Set current intention text
-                const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
-                const currentIntention = duaaElement ? duaaElement.innerText : '';
-                document.getElementById('admin-intention').value = currentIntention;
+                const intentionInput = document.getElementById('admin-intention');
+                if (document.activeElement !== intentionInput) {
+                    const duaaElement = document.querySelector('.duaa[data-t="header_sub"]');
+                    const currentIntention = duaaElement ? duaaElement.innerText : '';
+                    intentionInput.value = currentIntention;
+                }
 
                 showLoading(false);
                 document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
@@ -3565,7 +3578,7 @@
             function showLoading(s) { document.getElementById('loading').style.display = s ? 'flex' : 'none'; }
 
             window.onload = () => {
-                init();
+                init(true);
                 // checkPWAOnboarding(); // Temporarily disabled
                 setInterval(checkUpdates, 5000); // More frequent checks
                 setInterval(updateTimer, 1000);
