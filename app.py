@@ -1280,14 +1280,24 @@ def update_user_name():
     new_name = data.get("name")
     new_pin = data.get("pin") # Optional
     requester_uid = data.get("requester_uid")
+    khatma_id = data.get("khatma_id")
     
     if not uid or not new_name or not requester_uid:
         return jsonify({"error": "Missing required fields"}), 400
     
-    
     # Authorization: user can edit own name, or requester is admin
-    requester_name = db.get_user_name(requester_uid)
-    if str(uid) == str(requester_uid) or requester_name == "Admin":
+    # Legacy check for "Admin" name is removed, now strictly checks DB admin status if khatma_id provided
+    is_self = str(uid) == str(requester_uid)
+    is_admin = False
+    
+    if khatma_id:
+        is_admin = db.is_admin(requester_uid, khatma_id)
+    else:
+        # Fallback for legacy global admin if needed, checking name
+        requester_name = db.get_user_name(requester_uid)
+        if requester_name == "Admin": is_admin = True
+
+    if is_self or is_admin:
         try:
             db.update_user_profile(uid, new_name, new_pin)
             return jsonify({"success": True})
@@ -1297,6 +1307,29 @@ def update_user_name():
             return jsonify({"error": "Database error"}), 500
     
     return jsonify({"error": "Unauthorized"}), 403
+
+@app.route("/api/khatma/delete_user", methods=["POST"])
+def delete_khatma_user():
+    data = request.get_json()
+    uid = data.get("uid")
+    khatma_id = data.get("khatma_id")
+    requester_uid = data.get("requester_uid")
+    
+    if not uid or not khatma_id or not requester_uid:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    if not db.is_admin(requester_uid, khatma_id):
+        return jsonify({"error": "Unauthorized: Admin access required"}), 403
+        
+    # Prevent admin from deleting themselves? Maybe good safety, but user asked for "possibility to delete user"
+    if str(uid) == str(requester_uid):
+         return jsonify({"error": "Cannot delete yourself"}), 400
+
+    try:
+        db.remove_user_from_khatma(uid, khatma_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
