@@ -1677,6 +1677,8 @@
                     action_complete: "✅ إتمام",
                     action_unassign: "⚠️ إرجاع",
                     action_reset_pin: "🔑 تصفير الرمز",
+                    action_delete_user: "🗑️ حذف المستخدم",
+                    confirm_delete_user: "هل أنت متأكد من حذف هذا المستخدم نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
                     // Alerts & Confirms
                     alert_reserved: "محجوز",
                     confirm_generic: "هل أنت متأكد؟",
@@ -1793,6 +1795,8 @@
                     action_complete: "✅ Mark Complete",
                     action_unassign: "⚠️ Unassign",
                     action_reset_pin: "🔑 Reset PIN",
+                    action_delete_user: "🗑️ Delete User",
+                    confirm_delete_user: "Are you sure you want to delete this user? This cannot be undone.",
                     // Alerts & Confirms
                     alert_reserved: "Reserved",
                     confirm_generic: "Are you sure?",
@@ -1907,6 +1911,8 @@
                     action_complete: "✅ Marquer Terminé",
                     action_unassign: "⚠️ Désassigner",
                     action_reset_pin: "🔑 Réinitialiser PIN",
+                    action_delete_user: "🗑️ Supprimer l'utilisateur",
+                    confirm_delete_user: "Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.",
                     // Alerts & Confirms
                     alert_reserved: "Réservé",
                     confirm_generic: "Êtes-vous sûr ?",
@@ -2865,6 +2871,7 @@
                                 <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'complete'); closeAllMenus()">${t.action_complete}</button>
                                 <button class="action-menu-item" onclick="adminManageUser('${u.id}', '${u.name}', 'unassign'); closeAllMenus()">${t.action_unassign}</button>
                                 <button class="action-menu-item" onclick="adminAction('${u.id}', 'reset_pin'); closeAllMenus()">${t.action_reset_pin}</button>
+                                <button class="action-menu-item" style="color: #ef4444;" onclick="adminDeleteUser('${u.id}', '${u.name}'); closeAllMenus()">${t.action_delete_user}</button>
                             </div>
                         </td>
                     `;
@@ -3661,7 +3668,10 @@
                         body: JSON.stringify({
                             uid: uid,
                             name: newName.trim(),
-                            requester_uid: webUserUid  // Admin's UID
+                            uid: uid,
+                            name: newName.trim(),
+                            requester_uid: webUserUid,  // Admin's UID
+                            khatma_id: khatmaId
                         })
                     });
                     const data = await res.json();
@@ -3671,6 +3681,36 @@
                         alert('✅ تم تحديث اسم المستخدم بنجاح');
                     } else {
                         alert(data.error || 'فشل تحديث الاسم');
+                    }
+                    showLoading(false);
+                } catch (e) {
+                    alert('خطأ في الاتصال');
+                    showLoading(false);
+                }
+            }
+
+            async function adminDeleteUser(uid, name) {
+                const confirmed = await customConfirm(i18n[currentLang].confirm_delete_user.replace('{name}', name));
+                if (!confirmed) return;
+
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/khatma/delete_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            uid: uid,
+                            khatma_id: khatmaId,
+                            requester_uid: webUserUid
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await init();
+                        await openAdmin();
+                        alert(currentLang === 'ar' ? '✅ تم حذف المستخدم بنجاح' : '✅ User deleted successfully');
+                    } else {
+                        alert(data.error || 'فشل الحذف');
                     }
                     showLoading(false);
                 } catch (e) {
