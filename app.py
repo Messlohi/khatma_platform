@@ -100,6 +100,13 @@ class DatabaseManager:
                 c.execute("ALTER TABLE users ADD COLUMN khatma_id TEXT")
             except: pass
             
+            # RACE CONDITION FIX: Unique Index on (khatma_id, full_name)
+            # This prevents two users with same name being created in parallel.
+            try:
+                c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_khatma_user_name ON users(khatma_id, full_name)")
+            except: pass
+            
+            conn.commit()
             try:
                 c.execute("ALTER TABLE hizb_assignments ADD COLUMN khatma_id TEXT")
             except: pass
@@ -171,34 +178,91 @@ class DatabaseManager:
             conn.execute("INSERT OR REPLACE INTO users (id, full_name, username) VALUES (?, ?, ?)", (user_id, full_name, username))
             conn.commit()
 
+    def normalize_arabic(self, text):
+        text = text or ""
+        # Remove tashkeel
+        tashkeel = ["\u064B", "\u064C", "\u064D", "\u064E", "\u064F", "\u0650", "\u0651", "\u0652"]
+        for t in tashkeel: text = text.replace(t, "")
+        
+        # Unify Alef
+        text = text.replace("\u0622", "\u0627") # Alif Madda
+        text = text.replace("\u0623", "\u0627") # Alif Hamza Above
+        text = text.replace("\u0625", "\u0627") # Alif Hamza Below
+        
+        # Unify Ya / Alif Maqsura (End of word usually, but simple replace works for most user typos)
+        text = text.replace("\u0649", "\u064A") # Alif Maqsura -> Ya
+        
+        # Unify Taa Marbuta
+        text = text.replace("\u0629", "\u0647") # Taa Marbuta -> Ha
+        
+        # Remove invisible chars (ZWSP, LRM, RLM)
+        text = text.replace("\u200B", "").replace("\u200E", "").replace("\u200F", "")
+        
+        # Normalize spaces
+        return " ".join(text.split())
+
     def register_web_user(self, name, pin=None, khatma_id=None):
-        name, pin = str(name).strip(), (str(pin).strip() if pin else "")
+        raw_name, pin = str(name).strip(), (str(pin).strip() if pin else "")
+        norm_name = self.normalize_arabic(raw_name)
+
         with self.get_connection() as conn:
-            # Search within khatma if provided
+            # 1. Try exact match first (Performance)
             if khatma_id:
-                r = conn.execute("SELECT id, web_pin FROM users WHERE full_name = ? AND khatma_id = ?", (name, khatma_id)).fetchone()
+                query = "SELECT id, full_name, web_pin FROM users WHERE khatma_id = ?"
+                rows = conn.execute(query, (khatma_id,)).fetchall()
             else:
-                r = conn.execute("SELECT id, web_pin FROM users WHERE full_name = ?", (name,)).fetchone()
+                # Global search might be expensive, but if no khatma_id, we fall back to exact match on name
+                # or we accept that global users must match exactly.
+                # Ideally we only use normalization within a specific khatma context to avoid cross-khatma collisions?
+                # For now, let's limit legacy global search to exact match to be safe, or scan all (expensive).
+                # Current usage always passes khatma_id for new web users.
+                rows = conn.execute("SELECT id, full_name, web_pin FROM users WHERE full_name = ?", (raw_name,)).fetchall()
+
+            # 2. Iterate and check normalized names
+            matched_user = None
+            for r in rows:
+                uid, db_name, db_pin = r
+                if self.normalize_arabic(db_name) == norm_name:
+                    matched_user = r
+                    break
             
-            if r:
-                uid, dbp = r; dbp = str(dbp).strip() if dbp else ""
+            if matched_user:
+                uid, db_name, dbp = matched_user
+                dbp = str(dbp).strip() if dbp else ""
                 if dbp == "" or dbp == pin:
-                    if dbp == "" and pin != "": conn.execute("UPDATE users SET web_pin = ? WHERE id = ?", (pin, int(uid))); conn.commit(); self.bump()
+                    if dbp == "" and pin != "": 
+                        conn.execute("UPDATE users SET web_pin = ? WHERE id = ?", (pin, int(uid)))
+                        conn.commit(); self.bump()
                     return int(uid), "success"
                 return None, "wrong_pin"
             else:
-                # Generate unique ID with microsecond precision to avoid collisions
+                # Create new
                 import random
                 wid = -int(time.time() * 1000000 + random.randint(0, 999999))
                 try:
                     conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)", 
-                               (wid, name, "web_user", pin if pin else None, khatma_id))
+                               (wid, raw_name, "web_user", pin if pin else None, khatma_id))
                     conn.commit(); self.bump(); return int(wid), "success"
                 except sqlite3.IntegrityError:
-                    # ID collision - retry with new ID
+                    # RACE CONDITION HIT or ID conflict
+                    # Check if it was the name constraint
+                    if khatma_id:
+                        existing = conn.execute("SELECT id, web_pin FROM users WHERE full_name = ? AND khatma_id = ?", (raw_name, khatma_id)).fetchone()
+                        if existing:
+                            uid, dbp = existing
+                            dbp = str(dbp).strip() if dbp else ""
+                            # Update pin if needed
+                            if dbp == "" or dbp == pin:
+                                if dbp == "" and pin != "": 
+                                    conn.execute("UPDATE users SET web_pin = ? WHERE id = ?", (pin, int(uid)))
+                                    conn.commit(); self.bump()
+                                return int(uid), "success"
+                            return None, "wrong_pin"
+                            
+                    # If not name conflict, must be ID collision - retry with new ID
                     wid = -int(time.time() * 1000000 + random.randint(0, 999999))
                     conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)", 
-                               (wid, name, "web_user", pin if pin else None, khatma_id))
+                               (wid, raw_name, "web_user", pin if pin else None, khatma_id))
                     conn.commit(); self.bump(); return int(wid), "success"
 
     def is_admin(self, uid, khatma_id):
