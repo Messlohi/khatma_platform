@@ -1109,16 +1109,16 @@
             </div>
             <!-- Overdue section (when past deadline) -->
             <div id="countdown-overdue" style="display:none;">
-                <div class="countdown-title" style="color:#ef4444;">🔴 <span id="overdue-title">تأخرنا!</span></div>
+                <div class="countdown-title" style="color:#f59e0b;">⚠️ <span id="overdue-title">تأخرنا!</span></div>
                 <div class="countdown-timer" style="opacity:0.85;">
                     <div class="timer-unit"><span id="overdue-days" class="timer-val"
-                            style="color:#ef4444;">0</span><span class="timer-label" data-t="days">أيام</span></div>
+                            style="color:#f59e0b;">0</span><span class="timer-label" data-t="days">أيام</span></div>
                     <div class="timer-unit"><span id="overdue-hours" class="timer-val"
-                            style="color:#ef4444;">0</span><span class="timer-label" data-t="hours">ساعة</span></div>
+                            style="color:#f59e0b;">0</span><span class="timer-label" data-t="hours">ساعة</span></div>
                     <div class="timer-unit"><span id="overdue-minutes" class="timer-val"
-                            style="color:#ef4444;">0</span><span class="timer-label" data-t="minutes">دقيقة</span></div>
+                            style="color:#f59e0b;">0</span><span class="timer-label" data-t="minutes">دقيقة</span></div>
                     <div class="timer-unit"><span id="overdue-seconds" class="timer-val"
-                            style="color:#ef4444;">0</span><span class="timer-label" data-t="seconds">ثانية</span></div>
+                            style="color:#f59e0b;">0</span><span class="timer-label" data-t="seconds">ثانية</span></div>
                 </div>
             </div>
             <div id="goal-speed"
@@ -2503,9 +2503,10 @@
                     // Still show speed goal if hizbs remain
                     const totalRem = 60 - (window.hizbData.completed_count || 0);
                     if (totalRem > 0) {
-                        if (currentLang === 'ar') speedEl.innerHTML = `⚠️ لا يزال هناك <b>${totalRem}</b> حزب متبقٍ!`;
-                        else if (currentLang === 'fr') speedEl.innerHTML = `⚠️ Il reste encore <b>${totalRem}</b> hizbs à lire !`;
-                        else speedEl.innerHTML = `⚠️ There are still <b>${totalRem}</b> hizbs left to read!`;
+                        const hizbWord = totalRem === 1 ? 'حزب' : 'أحزاب';
+                        if (currentLang === 'ar') speedEl.innerHTML = `⚠️ لا يزال هناك <b>${totalRem}</b> ${hizbWord} متبقٍ!`;
+                        else if (currentLang === 'fr') speedEl.innerHTML = `⚠️ Il reste encore <b>${totalRem}</b> hizb${totalRem === 1 ? '' : 's'} à lire !`;
+                        else speedEl.innerHTML = `⚠️ There are still <b>${totalRem}</b> hizb${totalRem === 1 ? '' : 's'} left to read!`;
                         speedEl.style.display = 'inline-block';
                     } else {
                         speedEl.style.display = 'none';
