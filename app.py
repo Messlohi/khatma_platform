@@ -1427,7 +1427,7 @@ def api_status():
         
         intentions = db.get_intentions(khatma_id)
         parts = db.get_participants_activity(khatma_id) if khatma_id else db.get_participants_activity()
-        recent_activity = db.get_recent_activity(khatma_id)
+        recent_activity = db.get_recent_activity(khatma_id, limit=8)
 
         return jsonify({
             "completed_count": int(c), "active_count": int(a), "remaining_count": 60-int(c)-int(a),
