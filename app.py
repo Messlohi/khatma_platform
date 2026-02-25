@@ -1304,7 +1304,8 @@ def update_user_name():
         except Exception as e:
             if "UNIQUE constraint failed" in str(e):
                 return jsonify({"error": "Name already taken"}), 400
-            return jsonify({"error": "Database error"}), 500
+            import traceback; traceback.print_exc()
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
     
     return jsonify({"error": "Unauthorized"}), 403
 
@@ -1329,7 +1330,8 @@ def delete_khatma_user():
         db.remove_user_from_khatma(uid, khatma_id)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback; traceback.print_exc()
+        return jsonify({"error": f"Delete Error: {str(e)}"}), 500
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
@@ -1436,8 +1438,9 @@ def api_status():
             "recent_activity": recent_activity
         })
     except Exception as e:
+        import traceback; traceback.print_exc()
         print(f"DEBUG: api_status failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Status Error: {str(e)}"}), 500
 
 @app.route("/api/check_update")
 def check_update(): 

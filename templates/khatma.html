@@ -1093,16 +1093,33 @@
 
     <div class="container">
         <div id="countdown" class="countdown-card" style="display: none;">
-            <div class="countdown-title">⏳ <span data-t="remaining">الوقت المتبقي لختم القرآن</span></div>
-            <div class="countdown-timer">
-                <div class="timer-unit"><span id="days" class="timer-val">0</span><span class="timer-label"
-                        data-t="days">أيام</span></div>
-                <div class="timer-unit"><span id="hours" class="timer-val">0</span><span class="timer-label"
-                        data-t="hours">ساعة</span></div>
-                <div class="timer-unit"><span id="minutes" class="timer-val">0</span><span class="timer-label"
-                        data-t="minutes">دقيقة</span></div>
-                <div class="timer-unit"><span id="seconds" class="timer-val">0</span><span class="timer-label"
-                        data-t="seconds">ثانية</span></div>
+            <!-- Countdown (when not overdue) -->
+            <div id="countdown-live">
+                <div class="countdown-title">⏳ <span data-t="remaining">الوقت المتبقي لختم القرآن</span></div>
+                <div class="countdown-timer">
+                    <div class="timer-unit"><span id="days" class="timer-val">0</span><span class="timer-label"
+                            data-t="days">أيام</span></div>
+                    <div class="timer-unit"><span id="hours" class="timer-val">0</span><span class="timer-label"
+                            data-t="hours">ساعة</span></div>
+                    <div class="timer-unit"><span id="minutes" class="timer-val">0</span><span class="timer-label"
+                            data-t="minutes">دقيقة</span></div>
+                    <div class="timer-unit"><span id="seconds" class="timer-val">0</span><span class="timer-label"
+                            data-t="seconds">ثانية</span></div>
+                </div>
+            </div>
+            <!-- Overdue section (when past deadline) -->
+            <div id="countdown-overdue" style="display:none;">
+                <div class="countdown-title" style="color:#ef4444;">🔴 <span id="overdue-title">تأخرنا!</span></div>
+                <div class="countdown-timer" style="opacity:0.85;">
+                    <div class="timer-unit"><span id="overdue-days" class="timer-val"
+                            style="color:#ef4444;">0</span><span class="timer-label" data-t="days">أيام</span></div>
+                    <div class="timer-unit"><span id="overdue-hours" class="timer-val"
+                            style="color:#ef4444;">0</span><span class="timer-label" data-t="hours">ساعة</span></div>
+                    <div class="timer-unit"><span id="overdue-minutes" class="timer-val"
+                            style="color:#ef4444;">0</span><span class="timer-label" data-t="minutes">دقيقة</span></div>
+                    <div class="timer-unit"><span id="overdue-seconds" class="timer-val"
+                            style="color:#ef4444;">0</span><span class="timer-label" data-t="seconds">ثانية</span></div>
+                </div>
             </div>
             <div id="goal-speed"
                 style="margin-top: 15px; font-size: 0.9rem; background: rgba(0,0,0,0.1); padding: 5px 15px; border-radius: 20px; display: inline-block;">
@@ -2455,15 +2472,50 @@
                     return;
                 }
 
+                countdownEl.style.display = 'block';
                 const now = new Date().getTime();
                 const diff = deadline - now;
+                const liveEl = document.getElementById('countdown-live');
+                const overdueEl = document.getElementById('countdown-overdue');
+                const speedEl = document.getElementById('goal-speed');
 
                 if (diff <= 0) {
-                    countdownEl.style.display = 'none';
+                    // Deadline has passed — show overdue timer
+                    liveEl.style.display = 'none';
+                    overdueEl.style.display = 'block';
+                    const overdueDiff = Math.abs(diff);
+                    const od = Math.floor(overdueDiff / (1000 * 60 * 60 * 24));
+                    const oh = Math.floor((overdueDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const om = Math.floor((overdueDiff % (1000 * 60 * 60)) / (1000 * 60));
+                    const os = Math.floor((overdueDiff % (1000 * 60)) / 1000);
+                    document.getElementById('overdue-days').innerText = od;
+                    document.getElementById('overdue-hours').innerText = oh;
+                    document.getElementById('overdue-minutes').innerText = om;
+                    document.getElementById('overdue-seconds').innerText = os;
+
+                    const overdueTitle = document.getElementById('overdue-title');
+                    if (overdueTitle) {
+                        if (currentLang === 'ar') overdueTitle.innerText = 'تأخرنا عن الموعد!';
+                        else if (currentLang === 'fr') overdueTitle.innerText = 'En retard!';
+                        else overdueTitle.innerText = 'We missed the deadline!';
+                    }
+
+                    // Still show speed goal if hizbs remain
+                    const totalRem = 60 - (window.hizbData.completed_count || 0);
+                    if (totalRem > 0) {
+                        if (currentLang === 'ar') speedEl.innerHTML = `⚠️ لا يزال هناك <b>${totalRem}</b> حزب متبقٍ!`;
+                        else if (currentLang === 'fr') speedEl.innerHTML = `⚠️ Il reste encore <b>${totalRem}</b> hizbs à lire !`;
+                        else speedEl.innerHTML = `⚠️ There are still <b>${totalRem}</b> hizbs left to read!`;
+                        speedEl.style.display = 'inline-block';
+                    } else {
+                        speedEl.style.display = 'none';
+                    }
                     return;
                 }
 
-                document.getElementById('countdown').style.display = 'block';
+                // Deadline is in the future
+                liveEl.style.display = 'block';
+                overdueEl.style.display = 'none';
                 const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                 const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -2474,20 +2526,30 @@
                 document.getElementById('minutes').innerText = minutes;
                 document.getElementById('seconds').innerText = seconds;
 
-                // Calculate Speed Goal
+                // Calculate Speed Goal (fixed)
                 const totalRem = 60 - (window.hizbData.completed_count || 0);
-                const daysRemaining = diff / (1000 * 60 * 60 * 24);
-                const speedEl = document.getElementById('goal-speed');
+                const hoursRemaining = diff / (1000 * 60 * 60);
+                const daysRemaining = hoursRemaining / 24;
 
-                if (totalRem > 0 && daysRemaining > 0) {
-                    const speed = (totalRem / daysRemaining).toFixed(1);
-                    if (currentLang === 'ar') {
-                        speedEl.innerHTML = `🚀 نحتاج لقراءة <b>${speed}</b> حزب يومياً للختم في الموعد!`;
-                    } else if (currentLang === 'fr') {
-                        speedEl.innerHTML = `🚀 Il faut lire <b>${speed}</b> hizbs/jour pour finir à temps !`;
+                if (totalRem > 0) {
+                    let speedMsg = '';
+                    if (hoursRemaining < 24) {
+                        // Less than a day: show per-hour rate, capped at remaining
+                        const speedPerHour = Math.min(totalRem, totalRem / hoursRemaining);
+                        const displaySpeed = speedPerHour > totalRem ? totalRem : speedPerHour.toFixed(1);
+                        if (currentLang === 'ar') speedMsg = `🚀 نحتاج لقراءة <b>${displaySpeed}</b> حزب/ساعة للختم في الموعد!`;
+                        else if (currentLang === 'fr') speedMsg = `🚀 Il faut lire <b>${displaySpeed}</b> hizbs/heure pour finir à temps !`;
+                        else speedMsg = `🚀 Need to read <b>${displaySpeed}</b> hizbs/hour to finish on time!`;
                     } else {
-                        speedEl.innerHTML = `🚀 Need to read <b>${speed}</b> hizbs/day to finish on time!`;
+                        // More than a day: show per-day rate, capped at remaining
+                        const speedPerDay = totalRem / daysRemaining;
+                        // Cap at totalRem (can't need more hizbs than what's left)
+                        const displaySpeed = Math.min(speedPerDay, totalRem).toFixed(1);
+                        if (currentLang === 'ar') speedMsg = `🚀 نحتاج لقراءة <b>${displaySpeed}</b> حزب يومياً للختم في الموعد!`;
+                        else if (currentLang === 'fr') speedMsg = `🚀 Il faut lire <b>${displaySpeed}</b> hizbs/jour pour finir à temps !`;
+                        else speedMsg = `🚀 Need to read <b>${displaySpeed}</b> hizbs/day to finish on time!`;
                     }
+                    speedEl.innerHTML = speedMsg;
                     speedEl.style.display = 'inline-block';
                 } else {
                     speedEl.style.display = 'none';
@@ -3668,8 +3730,6 @@
                         body: JSON.stringify({
                             uid: uid,
                             name: newName.trim(),
-                            uid: uid,
-                            name: newName.trim(),
                             requester_uid: webUserUid,  // Admin's UID
                             khatma_id: khatmaId
                         })
@@ -3710,7 +3770,7 @@
                         await openAdmin();
                         alert(currentLang === 'ar' ? '✅ تم حذف المستخدم بنجاح' : '✅ User deleted successfully');
                     } else {
-                        alert(data.error || 'فشل الحذف');
+                        await customAlert(data.error || 'فشل الحذف', '', '❌');
                     }
                     showLoading(false);
                 } catch (e) {
