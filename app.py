@@ -668,7 +668,7 @@ class DatabaseManager:
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
 
-    def get_recent_activity(self, khatma_id=None, limit=5):
+    def get_recent_activity(self, khatma_id=None, limit=5, offset=0):
         try:
             with self.get_connection() as conn:
                 # Union of joined and completed events
@@ -683,9 +683,9 @@ class DatabaseManager:
                     JOIN users u ON ch.user_id = u.id
                     WHERE ch.khatma_id = ?
                     ORDER BY timestamp DESC
-                    LIMIT ?
+                    LIMIT ? OFFSET ?
                 """
-                params = (khatma_id, khatma_id, limit)
+                params = (khatma_id, khatma_id, limit, offset)
                 rows = conn.execute(sql, params).fetchall()
                 return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3]} for r in rows]
         except Exception as e:
@@ -1441,6 +1441,21 @@ def api_status():
         import traceback; traceback.print_exc()
         print(f"DEBUG: api_status failed: {e}")
         return jsonify({"error": f"Status Error: {str(e)}"}), 500
+
+@app.route("/api/activity")
+def api_activity():
+    khatma_id = request.args.get("khatma_id")
+    if not khatma_id:
+        return jsonify({"error": "khatma_id required"}), 400
+    try:
+        offset = int(request.args.get("offset", 0))
+        limit  = int(request.args.get("limit", 10))
+        # Fetch one extra to know if there are more pages
+        items = db.get_recent_activity(khatma_id, limit=limit + 1, offset=offset)
+        has_more = len(items) > limit
+        return jsonify({"items": items[:limit], "has_more": has_more, "next_offset": offset + limit})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/check_update")
 def check_update(): 

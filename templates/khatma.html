@@ -953,6 +953,26 @@
             font-size: 0.9rem;
         }
 
+        .activity-load-more-btn {
+            align-self: center;
+            margin-top: 4px;
+            background: rgba(6, 95, 70, 0.08);
+            color: var(--primary, #065f46);
+            border: 1.5px solid rgba(6, 95, 70, 0.2);
+            border-radius: 20px;
+            padding: 6px 18px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s ease, transform 0.15s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .activity-load-more-btn:hover {
+            background: rgba(6, 95, 70, 0.15);
+            transform: scale(1.03);
+        }
+
         /* Live pulse badge */
         .live-badge {
             display: inline-flex;
@@ -2613,7 +2633,7 @@
                     const totalRem = 60 - (window.hizbData.completed_count || 0);
                     if (totalRem > 0) {
                         const hizbWord = totalRem === 1 ? 'حزب' : 'أحزاب';
-                        if (currentLang === 'ar') speedEl.innerHTML = `⚠️ لا يزال هناك <b>${totalRem}</b> ${hizbWord} متبقٍ!`;
+                        if (currentLang === 'ar') speedEl.innerHTML = `⚠️ لا يزال هناك <b>${totalRem}</b> ${hizbWord} متبقية!`;
                         else if (currentLang === 'fr') speedEl.innerHTML = `⚠️ Il reste encore <b>${totalRem}</b> hizb${totalRem === 1 ? '' : 's'} à lire !`;
                         else speedEl.innerHTML = `⚠️ There are still <b>${totalRem}</b> hizb${totalRem === 1 ? '' : 's'} left to read!`;
                         speedEl.style.display = 'inline-block';
@@ -3299,6 +3319,46 @@
                 } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
             }
 
+            // ── Activity Feed (paginated) ──────────────────────────────
+            const ACTIVITY_INITIAL = 4;   // items shown from the initial page load
+            const ACTIVITY_PAGE = 10;  // items fetched per "load more" click
+            let activityNextOffset = 0; // tracks next page offset
+
+            function buildActivityCard(act, animIdx = 0) {
+                const isJoined = act.type === 'joined';
+                const timeStr = formatRelativeTime(act.timestamp);
+
+                let actionText;
+                if (currentLang === 'ar') {
+                    actionText = isJoined ? 'حجز' : 'أتمّ';
+                } else if (currentLang === 'fr') {
+                    actionText = isJoined ? 'a réservé' : 'a terminé';
+                } else {
+                    actionText = isJoined ? 'booked' : 'completed';
+                }
+
+                const avatarChar = (act.name || '?')[0].toUpperCase();
+                const typeClass = isJoined ? 'type-joined' : 'type-completed';
+                const typeIcon = isJoined ? '🤝' : '✅';
+
+                const card = document.createElement('div');
+                card.className = `activity-card ${typeClass}`;
+                card.style.animationDelay = `${animIdx * 0.06}s`;
+                card.innerHTML = `
+                    <div class="activity-avatar ${typeClass}">${avatarChar}</div>
+                    <div class="activity-body">
+                        <div class="activity-main">
+                            <strong>${act.name}</strong>
+                            ${actionText}
+                            <span class="activity-hizb-badge">${currentLang === 'ar' ? 'حزب' : 'Hizb'} ${act.hizb}</span>
+                        </div>
+                        <div class="activity-time">🕐 ${timeStr}</div>
+                    </div>
+                    <span class="activity-type-icon">${typeIcon}</span>
+                `;
+                return card;
+            }
+
             function renderActivityFeed(activities) {
                 const feed = document.getElementById('activity-feed');
 
@@ -3310,51 +3370,68 @@
                 feed.style.display = 'flex';
                 feed.innerHTML = '';
 
-                activities.forEach((act, idx) => {
-                    const isJoined = act.type === 'joined';
-                    const timeStr = formatRelativeTime(act.timestamp);
+                // Render up to ACTIVITY_INITIAL cards from the initial payload
+                const initial = activities.slice(0, ACTIVITY_INITIAL);
+                initial.forEach((act, idx) => feed.appendChild(buildActivityCard(act, idx)));
 
-                    let actionText, actionLabel;
-                    if (currentLang === 'ar') {
-                        actionText = isJoined ? 'حجز' : 'أتمّ';
-                        actionLabel = isJoined ? 'حجز الحزب' : 'أتمّ الحزب';
-                    } else if (currentLang === 'fr') {
-                        actionText = isJoined ? 'a réservé' : 'a terminé';
-                        actionLabel = isJoined ? 'Réservé' : 'Terminé';
-                    } else {
-                        actionText = isJoined ? 'booked' : 'completed';
-                        actionLabel = isJoined ? 'Booked' : 'Completed';
+                // Next offset starts after whatever we already showed
+                // (The main API already fetched 8 items; we've shown 4;
+                //  next fetch should continue from offset 8 on the server)
+                activityNextOffset = activities.length; // e.g. 8
+
+                // Always show the button initially (we fetch fresh from server on click)
+                addLoadMoreBtn(feed, true);
+            }
+
+            function addLoadMoreBtn(feed, visible) {
+                // Remove existing button first
+                const old = document.getElementById('activity-load-more');
+                if (old) old.remove();
+
+                if (!visible) return;
+
+                const btn = document.createElement('button');
+                btn.id = 'activity-load-more';
+                btn.className = 'activity-load-more-btn';
+                btn.textContent = currentLang === 'ar' ? `عرض المزيد ▾` : (currentLang === 'fr' ? `Voir plus ▾` : `Load more ▾`);
+
+                btn.onclick = async () => {
+                    btn.disabled = true;
+                    btn.textContent = currentLang === 'ar' ? '...' : 'Loading…';
+
+                    try {
+                        const url = `/api/activity?khatma_id=${encodeURIComponent(khatmaId)}&offset=${activityNextOffset}&limit=${ACTIVITY_PAGE}`;
+                        const res = await fetch(url, { cache: 'no-store' });
+                        const data = await res.json();
+
+                        if (data.error) throw new Error(data.error);
+
+                        const newItems = data.items || [];
+                        const startIdx = document.querySelectorAll('#activity-feed .activity-card').length;
+
+                        newItems.forEach((act, i) => {
+                            const card = buildActivityCard(act, i);
+                            // Insert before the button
+                            feed.insertBefore(card, btn);
+                        });
+
+                        activityNextOffset = data.next_offset;
+
+                        if (data.has_more) {
+                            btn.disabled = false;
+                            btn.textContent = currentLang === 'ar' ? `عرض المزيد ▾` : (currentLang === 'fr' ? `Voir plus ▾` : `Load more ▾`);
+                        } else {
+                            // No more results — remove the button
+                            btn.remove();
+                        }
+                    } catch (e) {
+                        console.error('Activity load error:', e);
+                        btn.disabled = false;
+                        btn.textContent = currentLang === 'ar' ? 'خطأ، حاول مجدداً' : 'Error – retry';
                     }
+                };
 
-                    // Avatar letter (first char of name)
-                    const avatarChar = (act.name || '?')[0].toUpperCase();
-                    const typeClass = isJoined ? 'type-joined' : 'type-completed';
-                    const typeIcon = isJoined ? '🤝' : '✅';
-
-                    const card = document.createElement('div');
-                    card.className = `activity-card ${typeClass}`;
-                    card.style.animationDelay = `${idx * 0.07}s`;
-
-                    card.innerHTML = `
-                        <div class="activity-avatar ${typeClass}">${avatarChar}</div>
-                        <div class="activity-body">
-                            <div class="activity-main">
-                                <strong>${act.name}</strong>
-                                ${actionText}
-                                <span class="activity-hizb-badge">${currentLang === 'ar' ? 'حزب' : 'Hizb'} ${act.hizb}</span>
-                            </div>
-                            <div class="activity-time">🕐 ${timeStr}</div>
-                        </div>
-                        <span class="activity-type-icon">${typeIcon}</span>
-                    `;
-
-                    feed.appendChild(card);
-                });
-
-                // If empty after population somehow
-                if (feed.children.length === 0) {
-                    feed.innerHTML = `<div class="activity-empty">🕊️ ${currentLang === 'ar' ? 'لا يوجد نشاط بعد' : 'No activity yet'}</div>`;
-                }
+                feed.appendChild(btn);
             }
 
             function formatRelativeTime(ts) {
