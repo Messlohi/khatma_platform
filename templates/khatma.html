@@ -854,40 +854,150 @@
 
         /* Activity Feed */
         .activity-feed {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 10px 15px;
-            margin-bottom: 20px;
             display: none;
-            overflow: hidden;
-            border: 1px solid rgba(6, 95, 70, 0.1);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            font-size: 0.85rem;
-            color: #374151;
-            text-align: center;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .activity-item {
-            display: none;
-            animation: slideInActivity 0.4s ease-out;
+        .activity-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--card-bg, #fff);
+            border-radius: 14px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            animation: activitySlideIn 0.4s cubic-bezier(.22, .68, 0, 1.2) both;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .activity-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+        }
+
+        .activity-card.type-joined {
+            border-right: 4px solid #0d9488;
+        }
+
+        .activity-card.type-completed {
+            border-right: 4px solid #16a34a;
+        }
+
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .activity-avatar.type-joined {
+            background: linear-gradient(135deg, #0d9488, #0891b2);
+        }
+
+        .activity-avatar.type-completed {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+        }
+
+        .activity-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .activity-main {
+            font-size: 0.88rem;
+            color: #1f2937;
+            font-weight: 500;
+            line-height: 1.4;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .activity-item.active {
-            display: block;
+        .activity-main strong {
+            color: var(--primary, #065f46);
         }
 
-        @keyframes slideInActivity {
+        .activity-hizb-badge {
+            display: inline-block;
+            background: rgba(6, 95, 70, 0.1);
+            color: var(--primary, #065f46);
+            border-radius: 6px;
+            padding: 1px 7px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .activity-time {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .activity-type-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .activity-empty {
+            text-align: center;
+            color: #9ca3af;
+            padding: 30px 10px;
+            font-size: 0.9rem;
+        }
+
+        /* Live pulse badge */
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: livePulse 1.5s infinite;
+        }
+
+        @keyframes livePulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.5);
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes activitySlideIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateX(20px);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateX(0);
             }
         }
 
@@ -1364,20 +1474,19 @@
     </nav>
 
     <div id="activity-section" class="container" style="margin-top: 30px; margin-bottom: 40px;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
             <div style="flex: 1; height: 1px; background: linear-gradient(to left, transparent, var(--secondary));">
             </div>
-            <h3 data-t="recent_activity_title" style="margin: 0; font-family: 'Outfit', sans-serif; font-weight: 600;">⚡
-                الأنشطة</h3>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 data-t="recent_activity_title"
+                    style="margin: 0; font-family: 'Outfit', sans-serif; font-weight: 600;">⚡ الأنشطة</h3>
+                <span class="live-badge"><span class="live-dot"></span>مباشر</span>
+            </div>
             <div style="flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--secondary));">
             </div>
         </div>
-        <div id="activity-feed" class="activity-feed"
-            style="background: var(--card-bg); border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 15px; min-height: 60px; border: 1px solid rgba(0,0,0,0.05);">
-            <div id="activity-list" class="activity-list"
-                style="position: relative; max-height: 400px; overflow-y: auto;">
-                <!-- Activity will go here -->
-            </div>
+        <div id="activity-feed" class="activity-feed">
+            <!-- Activity cards will go here -->
         </div>
     </div>
 
@@ -3190,58 +3299,61 @@
                 } catch (e) { showLoading(false); alert(i18n[currentLang].alert_connection_error); }
             }
 
-            let activityIndex = 0;
-            let activityInterval = null;
-
             function renderActivityFeed(activities) {
                 const feed = document.getElementById('activity-feed');
-                const list = document.getElementById('activity-list');
 
                 if (!activities || activities.length === 0) {
                     feed.style.display = 'none';
                     return;
                 }
 
-                feed.style.display = 'block';
-                list.innerHTML = '';
+                feed.style.display = 'flex';
+                feed.innerHTML = '';
 
-                activities.forEach(act => {
-                    const div = document.createElement('div');
-                    div.className = 'activity-item';
+                activities.forEach((act, idx) => {
+                    const isJoined = act.type === 'joined';
                     const timeStr = formatRelativeTime(act.timestamp);
-                    const typeIcon = act.type === 'joined' ? '🤝' : '✅';
-                    let actionText = "";
 
+                    let actionText, actionLabel;
                     if (currentLang === 'ar') {
-                        actionText = act.type === 'joined' ? 'حجز الحزب' : 'أتمّ الحزب';
+                        actionText = isJoined ? 'حجز' : 'أتمّ';
+                        actionLabel = isJoined ? 'حجز الحزب' : 'أتمّ الحزب';
                     } else if (currentLang === 'fr') {
-                        actionText = act.type === 'joined' ? 'a réservé le Hizb' : 'a terminé le Hizb';
+                        actionText = isJoined ? 'a réservé' : 'a terminé';
+                        actionLabel = isJoined ? 'Réservé' : 'Terminé';
                     } else {
-                        actionText = act.type === 'joined' ? 'joined Hizb' : 'completed Hizb';
+                        actionText = isJoined ? 'booked' : 'completed';
+                        actionLabel = isJoined ? 'Booked' : 'Completed';
                     }
 
-                    div.innerHTML = `<strong>${act.name}</strong> ${actionText} <strong>${act.hizb}</strong> <span style="font-size: 0.75rem; color: #6b7280; margin: 0 5px;">${timeStr}</span> ${typeIcon}`;
-                    list.appendChild(div);
+                    // Avatar letter (first char of name)
+                    const avatarChar = (act.name || '?')[0].toUpperCase();
+                    const typeClass = isJoined ? 'type-joined' : 'type-completed';
+                    const typeIcon = isJoined ? '🤝' : '✅';
+
+                    const card = document.createElement('div');
+                    card.className = `activity-card ${typeClass}`;
+                    card.style.animationDelay = `${idx * 0.07}s`;
+
+                    card.innerHTML = `
+                        <div class="activity-avatar ${typeClass}">${avatarChar}</div>
+                        <div class="activity-body">
+                            <div class="activity-main">
+                                <strong>${act.name}</strong>
+                                ${actionText}
+                                <span class="activity-hizb-badge">${currentLang === 'ar' ? 'حزب' : 'Hizb'} ${act.hizb}</span>
+                            </div>
+                            <div class="activity-time">🕐 ${timeStr}</div>
+                        </div>
+                        <span class="activity-type-icon">${typeIcon}</span>
+                    `;
+
+                    feed.appendChild(card);
                 });
 
-                startActivityTicker();
-            }
-
-            function startActivityTicker() {
-                if (activityInterval) clearInterval(activityInterval);
-                const items = document.querySelectorAll('.activity-item');
-                if (items.length === 0) return;
-
-                activityIndex = 0;
-                items.forEach(it => it.classList.remove('active'));
-                items[0].classList.add('active');
-
-                if (items.length > 1) {
-                    activityInterval = setInterval(() => {
-                        items[activityIndex].classList.remove('active');
-                        activityIndex = (activityIndex + 1) % items.length;
-                        items[activityIndex].classList.add('active');
-                    }, 4000);
+                // If empty after population somehow
+                if (feed.children.length === 0) {
+                    feed.innerHTML = `<div class="activity-empty">🕊️ ${currentLang === 'ar' ? 'لا يوجد نشاط بعد' : 'No activity yet'}</div>`;
                 }
             }
 
