@@ -1520,6 +1520,42 @@ def api_join():
         traceback.print_exc()
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
+@app.route("/api/join/batch", methods=["POST"])
+def api_join_batch():
+    try:
+        d = request.get_json()
+        khatma_id = d.get("khatma_id")
+        name = d.get("name")
+        pin = d.get("pin")
+        hizbs = d.get("hizbs", [])
+
+        if not name: return jsonify({"error": "الاسم مطلوب"}), 400
+        if not hizbs or not isinstance(hizbs, list): return jsonify({"error": "لم يتم اختيار أحزاب"}), 400
+        if not khatma_id: khatma_id = None
+
+        uid, s = db.register_web_user(name, pin, khatma_id)
+        if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
+
+        booked = []
+        failed = []
+        for h in hizbs:
+            try:
+                if db.assign_hizb(uid, int(h), khatma_id):
+                    booked.append(int(h))
+                else:
+                    failed.append(int(h))
+            except:
+                failed.append(int(h))
+
+        if booked:
+            return jsonify({"success": True, "uid": uid, "booked": booked, "failed": failed})
+        else:
+            return jsonify({"error": "جميع الأحزاب محجوزة أو حدث خطأ"}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
 @app.route("/api/done", methods=["POST"])
 def api_done():
     d = request.get_json()

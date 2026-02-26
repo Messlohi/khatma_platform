@@ -389,6 +389,160 @@
             animation: pulse 2s infinite;
         }
 
+        .hizb-btn.selected {
+            background: #ecfdf5;
+            border: 2.5px solid #10b981;
+            color: #065f46;
+            position: relative;
+            animation: selectPop 0.25s ease;
+        }
+
+        .hizb-btn.selected::after {
+            content: '✓';
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #10b981;
+            color: white;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .hizb-list-item.selected {
+            border: 2.5px solid #10b981;
+            background: #ecfdf5;
+            animation: selectPop 0.25s ease;
+        }
+
+        .hizb-list-item.selected .hizb-status::after {
+            content: '✓';
+            background: #10b981;
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
+        @keyframes selectPop {
+            0% {
+                transform: scale(0.92);
+            }
+
+            50% {
+                transform: scale(1.06);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .multi-select-bar {
+            position: fixed;
+            bottom: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 9990;
+            transition: bottom 0.35s cubic-bezier(.22, .68, 0, 1.2);
+            font-family: 'Outfit', sans-serif;
+            max-width: 95vw;
+        }
+
+        .multi-select-bar.visible {
+            bottom: 16px;
+        }
+
+        .multi-count {
+            color: #374151;
+            font-size: 0.88rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .multi-confirm-btn {
+            background: linear-gradient(135deg, var(--primary), #047857);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 8px 18px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            white-space: nowrap;
+        }
+
+        .multi-confirm-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+        }
+
+        .multi-cancel-btn {
+            background: none;
+            border: 1.5px solid #d1d5db;
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: #6b7280;
+            transition: 0.15s;
+            white-space: nowrap;
+        }
+
+        .multi-cancel-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        /* Multi-select active: dim unavailable, glow available */
+        .multi-active .hizb-btn.completed,
+        .multi-active .hizb-btn.taken,
+        .multi-active .hizb-btn.my-hizb {
+            opacity: 0.35;
+            pointer-events: none;
+            filter: grayscale(0.5);
+        }
+
+        .multi-active .hizb-btn:not(.completed):not(.taken):not(.my-hizb):not(.selected) {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+            border-color: #93c5fd;
+        }
+
+        .multi-active .hizb-list-item.completed,
+        .multi-active .hizb-list-item.taken,
+        .multi-active .hizb-list-item.my-hizb {
+            opacity: 0.35;
+            pointer-events: none;
+            filter: grayscale(0.5);
+        }
+
+        .multi-active .hizb-list-item:not(.completed):not(.taken):not(.my-hizb):not(.selected) {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+            border-color: #93c5fd;
+        }
+
         /* List View Styles */
         .hizb-list {
             margin-bottom: 40px;
@@ -1516,6 +1670,13 @@
             (<span id="debug-khatma-id">Global</span>)</p>
     </footer>
 
+    <!-- Multi-select floating bar -->
+    <div id="multi-select-bar" class="multi-select-bar">
+        <span id="multi-count" class="multi-count">0</span>
+        <button id="multi-confirm-btn" class="multi-confirm-btn" onclick="confirmMultiBook()">حجز الكل ✅</button>
+        <button class="multi-cancel-btn" onclick="cancelMultiSelect()">إلغاء ✖</button>
+    </div>
+
     <div id="dua-modal" class="modal">
         <div class="modal-content">
             <h3 data-t="add_dua_title">إضافة دعاء أو نية</h3>
@@ -2360,7 +2521,9 @@
                         item.onclick = () => alert(i18n[currentLang].alert_reserved);
                     } else {
                         item.style.cursor = 'pointer';
+                        item.dataset.hizb = i;
                         item.onclick = () => handleHizbClick(i);
+                        if (selectedHizbs.has(i)) item.classList.add('selected');
                     }
 
                     list.appendChild(item);
@@ -2392,6 +2555,9 @@
             async function init(shouldOpenAdmin = false) {
                 const debugEl = document.getElementById('debug-khatma-id');
                 if (debugEl) debugEl.innerText = khatmaId || "Global";
+                // Clear any multi-select state on data refresh
+                selectedHizbs.clear();
+                updateMultiBar();
                 updateUI();
                 showLoading(true);
                 try {
@@ -2548,6 +2714,7 @@
                 for (let i = 1; i <= 60; i++) {
                     const btn = document.createElement('button');
                     btn.className = 'hizb-btn';
+                    btn.dataset.hizb = i;
                     btn.innerText = i;
 
                     const isAvailable = available.includes(i);
@@ -2568,23 +2735,137 @@
                         btn.onclick = () => alert(i18n[currentLang].alert_reserved);
                     } else {
                         btn.onclick = () => handleHizbClick(i);
+                        if (selectedHizbs.has(i)) btn.classList.add('selected');
                     }
 
                     grid.appendChild(btn);
                 }
             }
 
-            async function handleHizbClick(h) {
-                currentHizb = h;
-                if (webUserUid) {
-                    let msgTemplate = (i18n[currentLang] && i18n[currentLang].confirm_book_hizb) ? i18n[currentLang].confirm_book_hizb : "Confirm booking Hizb {hizb}?";
-                    const msg = msgTemplate.replace('{hizb}', h).replace('{name}', webUserName || 'Reader');
-                    const confirmed = await customConfirm(msg);
-                    if (confirmed) {
-                        await quickJoin(h);
+            // ── Multi-Select State ──────────────────────────────
+            let multiSelectMode = false;
+            let selectedHizbs = new Set();
+
+            function handleHizbClick(h) {
+                if (!webUserUid) {
+                    openJoinModal(h);
+                    return;
+                }
+                // Always enter/use multi-select mode
+                toggleHizbSelect(h);
+            }
+
+            function toggleHizbSelect(h) {
+                if (selectedHizbs.has(h)) {
+                    selectedHizbs.delete(h);
+                } else {
+                    selectedHizbs.add(h);
+                }
+                // Update visuals on both grid and list
+                document.querySelectorAll(`[data-hizb="${h}"]`).forEach(el => {
+                    el.classList.toggle('selected', selectedHizbs.has(h));
+                });
+                updateMultiBar();
+            }
+
+            function updateMultiBar() {
+                const bar = document.getElementById('multi-select-bar');
+                const countEl = document.getElementById('multi-count');
+                const confirmBtn = document.getElementById('multi-confirm-btn');
+                const cancelBtn = document.querySelector('.multi-cancel-btn');
+                const grid = document.getElementById('hizb-grid');
+                const list = document.getElementById('hizb-list');
+                const n = selectedHizbs.size;
+
+                if (n > 0) {
+                    bar.classList.add('visible');
+                    grid.classList.add('multi-active');
+                    list.classList.add('multi-active');
+                    if (currentLang === 'ar') {
+                        countEl.textContent = n === 1 ? 'حزب واحد' : `${n} أحزاب`;
+                        confirmBtn.textContent = `حجز الكل (${n}) ✅`;
+                        cancelBtn.textContent = 'إلغاء ✖';
+                    } else if (currentLang === 'fr') {
+                        countEl.textContent = `${n} hizb${n > 1 ? 's' : ''}`;
+                        confirmBtn.textContent = `Réserver tout (${n}) ✅`;
+                        cancelBtn.textContent = 'Annuler ✖';
+                    } else {
+                        countEl.textContent = `${n} hizb${n > 1 ? 's' : ''}`;
+                        confirmBtn.textContent = `Book all (${n}) ✅`;
+                        cancelBtn.textContent = 'Cancel ✖';
                     }
                 } else {
-                    openJoinModal(h);
+                    bar.classList.remove('visible');
+                    grid.classList.remove('multi-active');
+                    list.classList.remove('multi-active');
+                }
+            }
+
+            function cancelMultiSelect() {
+                selectedHizbs.clear();
+                document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+                updateMultiBar();
+            }
+
+            async function confirmMultiBook() {
+                const hizbs = Array.from(selectedHizbs).sort((a, b) => a - b);
+                if (hizbs.length === 0) return;
+
+                const hizbsStr = hizbs.join(', ');
+                let msg;
+                if (currentLang === 'ar') msg = `حجز الأحزاب: ${hizbsStr}؟`;
+                else if (currentLang === 'fr') msg = `Réserver les hizbs: ${hizbsStr} ?`;
+                else msg = `Book hizbs: ${hizbsStr}?`;
+
+                const confirmed = await customConfirm(msg);
+                if (!confirmed) return;
+
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/join/batch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: webUserName,
+                            pin: webUserPin,
+                            hizbs: hizbs,
+                            khatma_id: khatmaId
+                        })
+                    });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        const booked = data.booked || [];
+                        const failed = data.failed || [];
+
+                        // Clear selection
+                        selectedHizbs.clear();
+                        updateMultiBar();
+
+                        await init();
+
+                        // Show read prompt for the first booked hizb
+                        if (booked.length > 0) {
+                            currentHizb = booked[0];
+                            openReadPrompt();
+                        }
+
+                        // Notify about failures if any
+                        if (failed.length > 0) {
+                            const failStr = failed.join(', ');
+                            await customAlert(
+                                currentLang === 'ar' ? `لم يتم حجز: ${failStr} (محجوزة مسبقاً)` :
+                                    `Could not book: ${failStr} (already taken)`, '', '⚠️'
+                            );
+                        }
+                    } else {
+                        showLoading(false);
+                        await customAlert(data.error || 'Unknown error', '', '❌');
+                    }
+                } catch (e) {
+                    console.error('Batch book error:', e);
+                    showLoading(false);
+                    await customAlert(`خطأ في الاتصال: ${e.message}`, '', '❌');
                 }
             }
 
