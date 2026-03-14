@@ -734,6 +734,7 @@ class DatabaseManager:
             if khatma_id:
                 # Localized reset
                 conn.execute("UPDATE khatmas SET total_khatmas = total_khatmas + 1 WHERE id = ?", (khatma_id,))
+                conn.execute("UPDATE khatmas SET current_deadline = '' WHERE id = ?", (khatma_id,))
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
                 conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
                 # We don't delete users or intentions for isolated Khatmas to keep membership
@@ -1569,16 +1570,7 @@ def api_done():
     if res == "completed":
         # Auto-increment total for this khatma and reset
         if khatma_id:
-            khatma = db.get_khatma(khatma_id)
-            if khatma:
-                new_total = khatma['total_khatmas'] + 1
-                with db.get_connection() as conn:
-                    conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (new_total, khatma_id))
-                    # Reset assignments/completed for this khatma
-                    conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
-                    conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
-                    conn.commit()
-                    db.bump()
+            db.reset(khatma_id)
         else:
             db.reset()  # Legacy bot behavior
         return jsonify({"success": True, "completed": True})
