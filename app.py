@@ -70,10 +70,31 @@ class DatabaseManager:
                 deadline TEXT,
                 total_khatmas INTEGER DEFAULT 0,
                 is_active INTEGER DEFAULT 1,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                selection_type TEXT DEFAULT 'sequential'
             )''')
             
-            # Migration: Ensure updated_at exists
+            # Migration: Add selection_type column if not exists
+            try:
+                c.execute("ALTER TABLE khatmas ADD COLUMN selection_type TEXT DEFAULT 'sequential'")
+            except: pass
+            
+            # New: Activity log table for audit trail
+            c.execute('''CREATE TABLE IF NOT EXISTS activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                khatma_id TEXT,
+                user_id INTEGER,
+                user_name TEXT,
+                action TEXT NOT NULL,
+                hizb_number INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                details TEXT
+            )''')
+            
+            # Migration: Ensure selection_type exists and has valid values
+            try:
+                c.execute("UPDATE khatmas SET selection_type = 'sequential' WHERE selection_type IS NULL")
+            except: pass
             try:
                 c.execute("ALTER TABLE khatmas ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
             except: pass
@@ -139,11 +160,14 @@ class DatabaseManager:
                 conn.execute("UPDATE groups SET last_update = ? WHERE typeof(last_update) = 'text'", (time.time(),))
                 conn.commit()
             except: pass
-
+            
             # Initialize Global State (for Telegram bot backward compatibility)
             c.execute("INSERT OR IGNORE INTO groups (id, title, last_update) VALUES (?, ?, ?)", (GLOBAL_GID, "Main Khatma", time.time()))
-            
             conn.commit()
+            
+
+
+
 
     def bump(self):
         with self.get_connection() as conn:
@@ -155,6 +179,18 @@ class DatabaseManager:
         with self.get_connection() as conn:
             conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             conn.commit()
+
+    def log_activity(self, khatma_id, user_id, user_name, action, hizb_number=None, details=None):
+        """Log an activity for audit trail."""
+        try:
+            with self.get_connection() as conn:
+                conn.execute(
+                    "INSERT INTO activity_log (khatma_id, user_id, user_name, action, hizb_number, details) VALUES (?, ?, ?, ?, ?, ?)",
+                    (khatma_id, user_id, user_name, action, hizb_number, details)
+                )
+                conn.commit()
+        except Exception as e:
+            print(f"Error logging activity: {e}")
 
     def get_v(self, khatma_id=None):
         try:
@@ -287,15 +323,27 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 gid = khatma_id if khatma_id else GLOBAL_GID
+                # Get user name for logging
+                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+                user_name = user_row[0] if user_row else f"User {user_id}"
+                
                 conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
                            (gid, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump_khatma(khatma_id); self.bump(); return True
+                conn.commit(); self.bump_khatma(khatma_id); self.bump()
+                
+                # Log activity
+                self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb_num)
+                return True
         except Exception as e:
             print(f"DEBUG: assign_hizb failed: {e}")
             return False
 
     def unassign_hizb(self, user_id, hizb_num, khatma_id=None):
         with self.get_connection() as conn:
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
+            
             if khatma_id:
                 c = conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
                                (khatma_id, int(user_id), int(hizb_num)))
@@ -303,35 +351,22 @@ class DatabaseManager:
                 c = conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
                                (GLOBAL_GID, int(user_id), int(hizb_num)))
             conn.commit()
-            if c.rowcount > 0: self.bump(); self.bump_khatma(khatma_id); return True
+            if c.rowcount > 0: 
+                self.bump(); self.bump_khatma(khatma_id)
+                # Log activity
+                self.log_activity(khatma_id, int(user_id), user_name, 'returned', hizb_num)
+                return True
         return False
 
-    def mark_done(self, user_id, hizb_num, khatma_id=None):
-        with self.get_connection() as conn:
-            if khatma_id:
-                c = conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
-                               (khatma_id, int(user_id), int(hizb_num)))
-                if c.rowcount == 0: return False
-                gid = khatma_id if khatma_id else GLOBAL_GID
-                conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                           (gid, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump(); self.bump_khatma(khatma_id)
-                # Check for completion
-                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
-            else:
-                c = conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ? AND hizb_number = ?", 
-                               (GLOBAL_GID, int(user_id), int(hizb_num)))
-                if c.rowcount == 0: return False
-                conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", 
-                           (GLOBAL_GID, int(user_id), int(hizb_num)))
-                conn.commit(); self.bump()
-                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
-            
-            return "completed" if comp_count >= 60 else True
+
 
     def undo_completion(self, user_id, hizb_num, khatma_id=None):
         try:
             with self.get_connection() as conn:
+                # Get user name for logging
+                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+                user_name = user_row[0] if user_row else f"User {user_id}"
+                
                 # Check if actually completed by this user
                 if khatma_id:
                     c = conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ? AND user_id = ? AND hizb_number = ?", 
@@ -349,6 +384,8 @@ class DatabaseManager:
                     
                     self.bump()
                     if khatma_id: self.bump_khatma(khatma_id)
+                    # Log activity
+                    self.log_activity(khatma_id, int(user_id), user_name, 'uncompleted', hizb_num)
                     return True
                 return False
         except Exception as e:
@@ -357,6 +394,10 @@ class DatabaseManager:
 
     def mark_all_done(self, user_id, khatma_id=None):
         with self.get_connection() as conn:
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
+            
             gid = khatma_id if khatma_id else GLOBAL_GID
             if khatma_id:
                 hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id))).fetchall()]
@@ -370,6 +411,10 @@ class DatabaseManager:
                 for h in hizbs: conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", (GLOBAL_GID, int(user_id), int(h)))
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
+            
+            # Log activity for each hizb
+            for h in hizbs:
+                self.log_activity(khatma_id, int(user_id), user_name, 'completed', h, f"Completed all ({len(hizbs)} hizbs)")
             
             # Check for completion
             if khatma_id:
@@ -705,21 +750,32 @@ class DatabaseManager:
 
     def mark_done(self, user_id, hizb, khatma_id=None):
         with self.get_connection() as conn:
-             # Verify assignment? Not strictly needed for bot but good practice
-            conn.execute("INSERT INTO completed_hizb (user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, datetime('now'))", (user_id, hizb, khatma_id))
-            conn.execute("DELETE FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id))
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
             
-            # Check for khatma completion
-            count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
+            gid = khatma_id if khatma_id else GLOBAL_GID
             
-            completed = False
-            if count >= 60:
-                completed = True
+            # Verify assignment and remove it
+            c = conn.execute("DELETE FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id))
+            # if c.rowcount == 0: return False # Optional: strict check
+            
+            conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
+                       (gid, int(user_id), int(hizb), khatma_id))
             
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
             
-            return "completed" if completed else True
+            # Log activity
+            self.log_activity(khatma_id, int(user_id), user_name, 'completed', hizb)
+            
+            # Check for khatma completion
+            if khatma_id:
+                count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
+            else:
+                count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
+            
+            return "completed" if count >= 60 else True
 
     def get_intentions(self, khatma_id=None):
         with self.get_connection() as conn:
@@ -734,7 +790,7 @@ class DatabaseManager:
             if khatma_id:
                 # Localized reset
                 conn.execute("UPDATE khatmas SET total_khatmas = total_khatmas + 1 WHERE id = ?", (khatma_id,))
-                conn.execute("UPDATE khatmas SET current_deadline = '' WHERE id = ?", (khatma_id,))
+                conn.execute("UPDATE khatmas SET deadline = '' WHERE id = ?", (khatma_id,))
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
                 conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
                 # We don't delete users or intentions for isolated Khatmas to keep membership
@@ -794,13 +850,19 @@ class DatabaseManager:
     
     def get_khatma(self, khatma_id):
         with self.get_connection() as conn:
-            row = conn.execute("SELECT id, name, admin_uid, intention, deadline, total_khatmas FROM khatmas WHERE id = ?", 
+            row = conn.execute("SELECT id, name, admin_uid, intention, deadline, total_khatmas, selection_type FROM khatmas WHERE id = ?", 
                              (khatma_id,)).fetchone()
             if row:
                 return {"id": row[0], "name": row[1], "admin_uid": row[2], "intention": row[3], 
-                       "deadline": row[4], "total_khatmas": row[5]}
+                       "deadline": row[4], "total_khatmas": row[5], "selection_type": row[6]}
 
         return None
+    
+    def get_khatma_selection_type(self, khatma_id):
+        """Get the selection type for a khatma (sequential, range, sahm, manual)"""
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT selection_type FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
+            return row[0] if row else 'sequential'
 
     def update_khatma(self, khatma_id, **kwargs):
         with self.get_connection() as conn:
@@ -810,8 +872,40 @@ class DatabaseManager:
                 conn.execute("UPDATE khatmas SET deadline = ? WHERE id = ?", (kwargs['deadline'], khatma_id))
             if 'total_khatmas' in kwargs:
                 conn.execute("UPDATE khatmas SET total_khatmas = ? WHERE id = ?", (kwargs['total_khatmas'], khatma_id))
+            if 'selection_type' in kwargs:
+                conn.execute("UPDATE khatmas SET selection_type = ? WHERE id = ?", (kwargs['selection_type'], khatma_id))
             conn.commit(); self.bump(); self.bump_khatma(khatma_id)
             return True
+
+    def get_activity_logs(self, khatma_id, limit=100):
+        """Get activity logs for a khatma, ordered by most recent first."""
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT id, user_id, user_name, action, hizb_number, timestamp, details FROM activity_log WHERE khatma_id = ? ORDER BY timestamp DESC LIMIT ?",
+                (khatma_id, limit)
+            ).fetchall()
+            return [
+                {
+                    "id": r[0], "user_id": r[1], "user_name": r[2], "action": r[3],
+                    "hizb_number": r[4], "timestamp": r[5], "details": r[6]
+                }
+                for r in rows
+            ]
+
+    def get_all_activity_logs(self, limit=100):
+        """Get all activity logs, ordered by most recent first."""
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT id, khatma_id, user_id, user_name, action, hizb_number, timestamp, details FROM activity_log ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            return [
+                {
+                    "id": r[0], "khatma_id": r[1], "user_id": r[2], "user_name": r[3], "action": r[4],
+                    "hizb_number": r[5], "timestamp": r[6], "details": r[7]
+                }
+                for r in rows
+            ]
 
     def update_user_pin(self, uid, new_pin, khatma_id):
         with self.get_connection() as conn:
@@ -1559,37 +1653,45 @@ def api_join_batch():
 
 @app.route("/api/done", methods=["POST"])
 def api_done():
-    d = request.get_json()
-    ur = d.get("uid")
-    khatma_id = d.get("khatma_id")
-    if not khatma_id: khatma_id = None
-    uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
-    if uid is None: return jsonify({"error": "User not identified"}), 400
-    
-    res = db.mark_done(uid, int(d.get("hizb")), khatma_id)
-    if res == "completed":
-        # Auto-increment total for this khatma and reset
-        if khatma_id:
-            db.reset(khatma_id)
-        else:
-            db.reset()  # Legacy bot behavior
-        return jsonify({"success": True, "completed": True})
-    if res: return jsonify({"success": True})
-    return jsonify({"error": "فشل"}), 400
+    try:
+        d = request.get_json()
+        ur = d.get("uid")
+        khatma_id = d.get("khatma_id")
+        if not khatma_id: khatma_id = None
+        uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+        if uid is None: return jsonify({"error": "User not identified"}), 400
+        
+        res = db.mark_done(uid, int(d.get("hizb")), khatma_id)
+        if res == "completed":
+            # Auto-increment total for this khatma and reset
+            if khatma_id:
+                db.reset(khatma_id)
+            else:
+                db.reset()  # Legacy bot behavior
+            return jsonify({"success": True, "completed": True})
+        if res: return jsonify({"success": True})
+        return jsonify({"error": "فشل"}), 400
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/done_all", methods=["POST"])
 def api_done_all():
-    d = request.get_json(); ur = d.get("uid"); khatma_id = d.get("khatma_id")
-    if not khatma_id: khatma_id = None
-    uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
-    if uid is None: return jsonify({"error": "User not identified"}), 400
-    
-    res = db.mark_all_done(uid, khatma_id)
-    if res == "completed":
-        db.reset(khatma_id)
-        return jsonify({"success": True, "completed": True})
-    if res: return jsonify({"success": True})
-    return jsonify({"error": "لا يوجد أحزاب لإتمامها"}), 400
+    try:
+        d = request.get_json(); ur = d.get("uid"); khatma_id = d.get("khatma_id")
+        if not khatma_id: khatma_id = None
+        uid = int(ur) if (ur and (str(ur).isdigit() or (str(ur).startswith('-') and str(ur)[1:].isdigit()))) else None
+        if uid is None: return jsonify({"error": "User not identified"}), 400
+        
+        res = db.mark_all_done(uid, khatma_id)
+        if res == "completed":
+            db.reset(khatma_id)
+            return jsonify({"success": True, "completed": True})
+        if res: return jsonify({"success": True})
+        return jsonify({"error": "لا يوجد أحزاب لإتمامها"}), 400
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/undo_complete", methods=["POST"])
 def api_undo_complete():
@@ -1700,6 +1802,106 @@ def download_card():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+
+# --- Activity Log API ---
+@app.route("/api/activity_log", methods=["GET"])
+def api_get_activity_log():
+    """Get activity logs for a khatma (admin endpoint)"""
+    khatma_id = request.args.get("khatma_id")
+    limit = int(request.args.get("limit", 100))
+    
+    if not khatma_id:
+        return jsonify({"error": "khatma_id required"}), 400
+    
+    logs = db.get_activity_logs(khatma_id, limit)
+    return jsonify({"success": True, "logs": logs})
+
+@app.route("/api/dev/activity_log", methods=["GET"])
+@require_dev_auth
+def api_get_all_activity_logs():
+    """Get all activity logs (developer endpoint)"""
+    limit = int(request.args.get("limit", 100))
+    logs = db.get_all_activity_logs(limit)
+    return jsonify({"success": True, "logs": logs})
+
+# --- Selection Type API ---
+@app.route("/api/khatma/selection_type", methods=["GET"])
+def api_get_selection_type():
+    """Get the selection type for a khatma"""
+    khatma_id = request.args.get("khatma_id")
+    if not khatma_id:
+        return jsonify({"error": "khatma_id required"}), 400
+    
+    selection_type = db.get_khatma_selection_type(khatma_id)
+    return jsonify({"success": True, "selection_type": selection_type})
+
+@app.route("/api/khatma/selection_type", methods=["POST"])
+def api_set_selection_type():
+    """Set the selection type for a khatma (admin endpoint)"""
+    d = request.get_json()
+    khatma_id = d.get("khatma_id")
+    selection_type = d.get("selection_type")
+    
+    if not khatma_id:
+        return jsonify({"error": "khatma_id required"}), 400
+    if not selection_type:
+        return jsonify({"error": "selection_type required"}), 400
+    
+    # Validate selection type
+    valid_types = ['sequential', 'range', 'sahm', 'manual']
+    if selection_type not in valid_types:
+        return jsonify({"error": f"Invalid selection_type. Must be one of: {', '.join(valid_types)}"}), 400
+    
+    db.update_khatma(khatma_id, selection_type=selection_type)
+    return jsonify({"success": True, "selection_type": selection_type})
+
+# --- Sahm (Random) Selection API ---
+@app.route("/api/join/sahm", methods=["POST"])
+def api_join_sahm():
+    """Join a khatma using Sahm (random) selection"""
+    try:
+        d = request.get_json()
+        khatma_id = d.get("khatma_id")
+        name = d.get("name")
+        pin = d.get("pin")
+        count = int(d.get("count", 1))  # Number of hizbs to randomly assign
+        
+        if not name: return jsonify({"error": "الاسم مطلوب"}), 400
+        if not khatma_id: return jsonify({"error": "khatma_id مطلوب"}), 400
+        
+        # Check if this khatma supports sahm selection
+        selection_type = db.get_khatma_selection_type(khatma_id)
+        if selection_type != 'sahm':
+            return jsonify({"error": "هذه الختمة لا تدعم الاختيار العشوائي (السهم)"}), 400
+        
+        uid, s = db.register_web_user(name, pin, khatma_id)
+        if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
+        
+        # Get available hizbs
+        avail = db.get_available(khatma_id)
+        if not avail:
+            return jsonify({"error": "لا توجد أحزاب متاحة"}), 400
+        
+        import random
+        # Randomly select hizbs
+        selected = random.sample(avail, min(count, len(avail)))
+        
+        booked = []
+        failed = []
+        for h in selected:
+            if db.assign_hizb(uid, int(h), khatma_id):
+                booked.append(int(h))
+            else:
+                failed.append(int(h))
+        
+        if booked:
+            return jsonify({"success": True, "uid": uid, "hizbs": booked, "failed": failed})
+        else:
+            return jsonify({"error": "فشل في اختيار الأحزاب عشوائياً"}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 if __name__ == "__main__": 
     app.run(port=5000, debug=True)

@@ -1,0 +1,12 @@
+# Kilo Code Rules (Staff Engineer Mode)
+
+1. **Follow Antigravity Rules:** Adhere strictly to `.agent/rules/best_practices.md`.
+2. **Repository Isolation:** Only use the `memory-bank/` located in THIS repository.
+3. **Lazy Load (BEFORE CODING):** ALWAYS read `activeContext.md`, `techContext.md`, `map.md`, and `lessons.md` before you start typing code.
+4. **Task Management (DURING CODING):** Plan your steps in `todo.md`, track your progress, and verify the code actually works before you finish.
+5. **🛑 CRITICAL HANDOFF PROTOCOL (AFTER CODING):**
+   You are FORBIDDEN from ending your turn, stopping your output, or telling the user "I am done" until you explicitly use your file-writing tools to:
+   * Overwrite `memory-bank/activeContext.md` with the new, exact state of the codebase.
+   * Append your completed feature to `memory-bank/progress.md`.
+   * Update `memory-bank/todo.md` to check off completed items.
+   Failure to update these files breaks the workspace. YOU MUST WRITE TO THESE FILES AUTONOMOUSLY at the end of every task.
