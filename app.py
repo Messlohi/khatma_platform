@@ -174,15 +174,21 @@ class DatabaseManager:
 
 
     def bump(self):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
             conn.commit()
+        finally:
+            conn.close()
 
     def bump_khatma(self, khatma_id):
         if not khatma_id: return
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             conn.commit()
+        finally:
+            conn.close()
 
     def log_activity(self, khatma_id, user_id, user_name, action, hizb_number=None, details=None, conn=None):
         """Log an activity for audit trail. Can reuse an existing connection/transaction."""
@@ -218,9 +224,12 @@ class DatabaseManager:
             return 0.0
 
     def register_user(self, user_id, full_name, username):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("INSERT OR REPLACE INTO users (id, full_name, username) VALUES (?, ?, ?)", (user_id, full_name, username))
             conn.commit()
+        finally:
+            conn.close()
 
     def normalize_arabic(self, text):
         text = text or ""
@@ -249,17 +258,13 @@ class DatabaseManager:
         raw_name, pin = str(name).strip(), (str(pin).strip() if pin else "")
         norm_name = self.normalize_arabic(raw_name)
 
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # 1. Try exact match first (Performance)
             if khatma_id:
                 query = "SELECT id, full_name, web_pin FROM users WHERE khatma_id = ?"
                 rows = conn.execute(query, (khatma_id,)).fetchall()
             else:
-                # Global search might be expensive, but if no khatma_id, we fall back to exact match on name
-                # or we accept that global users must match exactly.
-                # Ideally we only use normalization within a specific khatma context to avoid cross-khatma collisions?
-                # For now, let's limit legacy global search to exact match to be safe, or scan all (expensive).
-                # Current usage always passes khatma_id for new web users.
                 rows = conn.execute("SELECT id, full_name, web_pin FROM users WHERE full_name = ?", (raw_name,)).fetchall()
 
             # 2. Iterate and check normalized names
@@ -308,29 +313,35 @@ class DatabaseManager:
                     conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)", 
                                (wid, raw_name, "web_user", pin if pin else None, khatma_id))
                     conn.commit(); self.bump(); return int(wid), "success"
+        finally:
+            conn.close()
 
     def is_admin(self, uid, khatma_id):
         """Check if user is admin of the specified Khatma"""
         if not uid or not khatma_id:
             return False
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             row = conn.execute("SELECT admin_uid FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
             return row and row[0] is not None and int(row[0]) == int(uid)
+        finally:
+            conn.close()
 
     def verify_admin_credentials(self, uid, khatma_id, pin):
         """Strict check: UID must be Admin AND Pin must match"""
         if not self.is_admin(uid, khatma_id):
             return False
         
-        with self.get_connection() as conn:
-            # Check user's PIN
-            row = conn.execute("SELECT web_pin FROM users WHERE id = ?", (uid,)).fetchone()
+        conn = self.get_connection()
             return row and str(row[0]) == str(pin)
+        finally:
+            conn.close()
 
 
 
     def unassign_hizb(self, user_id, hizb_num, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # Get user name for logging
             user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
             user_name = user_row[0] if user_row else f"User {user_id}"
@@ -347,13 +358,15 @@ class DatabaseManager:
                 # Log activity
                 self.log_activity(khatma_id, int(user_id), user_name, 'returned', hizb_num)
                 return True
-        return False
+            return False
+        finally:
+            conn.close()
 
 
 
     def undo_completion(self, user_id, hizb_num, khatma_id=None):
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
                 # Get user name for logging
                 user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
                 user_name = user_row[0] if user_row else f"User {user_id}"
@@ -376,12 +389,14 @@ class DatabaseManager:
                     self.bump()
                     if khatma_id: self.bump_khatma(khatma_id)
                     # Log activity
-                    self.log_activity(khatma_id, int(user_id), user_name, 'uncompleted', hizb_num)
+                    self.log_activity(khatma_id, int(user_id), user_name, 'undone', hizb_num)
                     return True
                 return False
         except Exception as e:
-            print(f"ERROR: undo_completion failed: {e}", flush=True)
+            print(f"Error in undo_completion: {e}")
             return False
+        finally:
+            conn.close()
 
     def mark_all_done(self, user_id, khatma_id=None):
         """Mark multiple hizbs as done in a single transaction."""
@@ -529,7 +544,7 @@ class DatabaseManager:
                 if uid and not data[name].get("id"): data[name]["id"] = uid # Ensure ID is captured
                 
             for name, hizb, uid in comp_rows:
-                if name not in data: data[name] = {"active": [], "completed": [], "id": uid}
+                if name not in data: data[name] = {"active": [], "completed": []}
                 data[name]["completed"].append(hizb)
                 if uid and not data[name].get("id"): data[name]["id"] = uid
                 
@@ -642,16 +657,22 @@ class DatabaseManager:
                     })
             
             return results
+        finally:
+            conn.close()
 
     def get_global_stats(self):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             total_khatmas = conn.execute("SELECT COUNT(*) FROM khatmas").fetchone()[0]
             total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
             total_reads = conn.execute("SELECT COUNT(*) FROM completed_hizb").fetchone()[0]
             return {"khatmas": total_khatmas, "users": total_users, "reads": total_reads}
+        finally:
+            conn.close()
             
     def delete_khatma(self, khatma_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("DELETE FROM khatmas WHERE id = ?", (khatma_id,))
             conn.execute("DELETE FROM users WHERE khatma_id = ?", (khatma_id,))
             conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
@@ -660,11 +681,14 @@ class DatabaseManager:
             conn.execute("DELETE FROM intentions WHERE khatma_id = ?", (khatma_id,))
             conn.commit()
             return True
+        finally:
+            conn.close()
 
 
 
     def get_all_users(self, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # Get users with counts of active and completed hizbs
             # IMPORTANT: Filter by khatma_id if provided
             if khatma_id:
@@ -685,21 +709,30 @@ class DatabaseManager:
                 """
                 rows = conn.execute(query).fetchall()
             return [{"id": r[0], "name": r[1], "pin": r[2], "active": r[3], "completed": r[4]} for r in rows]
+        finally:
+            conn.close()
 
     def reset_user_pin(self, user_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             kid = conn.execute("SELECT khatma_id FROM users WHERE id = ?", (int(user_id),)).fetchone()
             conn.execute("UPDATE users SET web_pin = NULL WHERE id = ?", (int(user_id),))
             conn.commit(); self.bump()
             if kid and kid[0]: self.bump_khatma(kid[0])
+        finally:
+            conn.close()
 
     def get_user_name(self, user_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             r = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
             return r[0] if r else None
+        finally:
+            conn.close()
     
     def update_user_profile(self, user_id, new_name, new_pin=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             kid = conn.execute("SELECT khatma_id FROM users WHERE id = ?", (int(user_id),)).fetchone()
             if new_pin is not None:
                 conn.execute("UPDATE users SET full_name = ?, web_pin = ? WHERE id = ?", (new_name, new_pin, int(user_id)))
@@ -707,81 +740,100 @@ class DatabaseManager:
                 conn.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, int(user_id)))
             conn.commit(); self.bump()
             if kid and kid[0]: self.bump_khatma(kid[0])
+        finally:
+            conn.close()
 
     def get_user_hizbs(self, user_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             return [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE user_id = ?", (int(user_id),)).fetchall()]
+        finally:
+            conn.close()
 
     def increment_total_completions(self):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             curr = conn.execute("SELECT value FROM settings WHERE key = 'total_khatmas'").fetchone()
             new_val = int(curr[0] or 0) + 1
             conn.execute("UPDATE settings SET value = ? WHERE key = 'total_khatmas'", (str(new_val),))
             conn.commit(); self.bump()
+        finally:
+            conn.close()
+            
 
     def add_intention(self, uid, name, text, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("INSERT INTO intentions (user_id, name, text, timestamp, khatma_id) VALUES (?, ?, ?, ?, ?)", 
                          (uid, name, text, time.time(), khatma_id))
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
+        finally:
+            conn.close()
 
     def delete_intention(self, uid, dua_id, khatma_id=None):
         # We delete by ID andUID for security
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("DELETE FROM intentions WHERE user_id = ? AND id = ?", (uid, int(dua_id)))
             conn.commit(); self.bump()
             if khatma_id: self.bump_khatma(khatma_id)
+        finally:
+            conn.close()
 
     def get_recent_activity(self, khatma_id=None, limit=5, offset=0):
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
-                # Union of joined and completed events
-                sql = """
-                    SELECT 'joined' as type, u.full_name, ha.hizb_number, ha.timestamp
-                    FROM hizb_assignments ha
-                    JOIN users u ON ha.user_id = u.id
-                    WHERE ha.khatma_id = ?
-                    UNION ALL
-                    SELECT 'completed' as type, u.full_name, ch.hizb_number, ch.timestamp
-                    FROM completed_hizb ch
-                    JOIN users u ON ch.user_id = u.id
-                    WHERE ch.khatma_id = ?
-                    ORDER BY timestamp DESC
-                    LIMIT ? OFFSET ?
-                """
-                params = (khatma_id, khatma_id, limit, offset)
-                rows = conn.execute(sql, params).fetchall()
-                return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3]} for r in rows]
+            # Union of joined and completed events
+            sql = """
+                SELECT 'joined' as type, u.full_name, ha.hizb_number, ha.timestamp
+                FROM hizb_assignments ha
+                JOIN users u ON ha.user_id = u.id
+                WHERE ha.khatma_id = ?
+                UNION ALL
+                SELECT 'completed' as type, u.full_name, ch.hizb_number, ch.timestamp
+                FROM completed_hizb ch
+                JOIN users u ON ch.user_id = u.id
+                WHERE ch.khatma_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
+            """
+            params = (khatma_id, khatma_id, limit, offset)
+            rows = conn.execute(sql, params).fetchall()
+            return [{"type": r[0], "name": r[1], "hizb": r[2], "time": r[3]} for r in rows]
         except Exception as e:
             # If timestamp columns don't exist yet, return empty activity
             print(f"WARNING: get_recent_activity failed (likely missing columns): {e}")
             return []
+        finally:
+            conn.close()
 
     def assign_hizb(self, user_id, hizb, khatma_id=None):
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
-                # Get user name for logging
-                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
-                user_name = user_row[0] if user_row else f"User {user_id}"
-                
-                gid = khatma_id if khatma_id else GLOBAL_GID
-                
-                # Check availability
-                row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
-                if row: return False
-                
-                conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
-                           (gid, int(user_id), int(hizb), khatma_id))
-                conn.commit(); self.bump()
-                if khatma_id: self.bump_khatma(khatma_id)
-                
-                # Log activity
-                self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb)
-                return True
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
+            
+            gid = khatma_id if khatma_id else GLOBAL_GID
+            
+            # Check availability
+            row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND (khatma_id = ? OR group_id = ?)", (hizb, khatma_id, gid)).fetchone()
+            if row: return False
+            
+            conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
+                       (gid, int(user_id), int(hizb), khatma_id))
+            conn.commit(); self.bump()
+            if khatma_id: self.bump_khatma(khatma_id)
+            
+            # Log activity
+            self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb)
+            return True
         except Exception as e:
             print(f"DEBUG: assign_hizb failed: {e}")
             return False
+        finally:
+            conn.close()
 
     def assign_hizb_batch(self, user_id, hizbs, khatma_id=None):
         """Assign multiple hizbs in a single exclusive transaction."""
@@ -895,23 +947,32 @@ class DatabaseManager:
             conn.close()
 
     def get_setting(self, key):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
             return row[0] if row else None
+        finally:
+            conn.close()
 
     def set_setting(self, key, value):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
             conn.commit(); self.bump()
+        finally:
+            conn.close()
     
     # --- Multi-Tenant Khatma Functions ---
     def generate_khatma_id(self):
         import random, string
         while True:
             kid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-            with self.get_connection() as conn:
+            conn = self.get_connection()
+            try:
                 exists = conn.execute("SELECT 1 FROM khatmas WHERE id = ?", (kid,)).fetchone()
                 if not exists: return kid
+            finally:
+                conn.close()
     
     def create_khatma(self, name, admin_id, admin_name, admin_pin, intention="", deadline=""):
         conn = self.get_connection()
@@ -930,23 +991,29 @@ class DatabaseManager:
         return khatma_id, admin_uid
     
     def get_khatma(self, khatma_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             row = conn.execute("SELECT id, name, admin_uid, intention, deadline, total_khatmas, selection_type FROM khatmas WHERE id = ?", 
                              (khatma_id,)).fetchone()
             if row:
                 return {"id": row[0], "name": row[1], "admin_uid": row[2], "intention": row[3], 
                        "deadline": row[4], "total_khatmas": row[5], "selection_type": row[6]}
-
-        return None
+            return None
+        finally:
+            conn.close()
     
     def get_khatma_selection_type(self, khatma_id):
         """Get the selection type for a khatma (sequential, range, sahm, manual)"""
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             row = conn.execute("SELECT selection_type FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
             return row[0] if row else 'sequential'
+        finally:
+            conn.close()
 
     def update_khatma(self, khatma_id, **kwargs):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             if 'intention' in kwargs:
                 conn.execute("UPDATE khatmas SET intention = ? WHERE id = ?", (kwargs['intention'], khatma_id))
             if 'deadline' in kwargs:
@@ -957,10 +1024,13 @@ class DatabaseManager:
                 conn.execute("UPDATE khatmas SET selection_type = ? WHERE id = ?", (kwargs['selection_type'], khatma_id))
             conn.commit(); self.bump(); self.bump_khatma(khatma_id)
             return True
+        finally:
+            conn.close()
 
     def get_activity_logs(self, khatma_id, limit=100):
         """Get activity logs for a khatma, ordered by most recent first."""
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             rows = conn.execute(
                 "SELECT id, user_id, user_name, action, hizb_number, timestamp, details FROM activity_log WHERE khatma_id = ? ORDER BY timestamp DESC LIMIT ?",
                 (khatma_id, limit)
@@ -972,10 +1042,13 @@ class DatabaseManager:
                 }
                 for r in rows
             ]
+        finally:
+            conn.close()
 
     def get_all_activity_logs(self, limit=100):
         """Get all activity logs, ordered by most recent first."""
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             rows = conn.execute(
                 "SELECT id, khatma_id, user_id, user_name, action, hizb_number, timestamp, details FROM activity_log ORDER BY timestamp DESC LIMIT ?",
                 (limit,)
@@ -987,20 +1060,28 @@ class DatabaseManager:
                 }
                 for r in rows
             ]
+        finally:
+            conn.close()
 
     def update_user_pin(self, uid, new_pin, khatma_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("UPDATE users SET web_pin = ? WHERE id = ? AND khatma_id = ?", (new_pin, uid, khatma_id))
             conn.commit()
             return True
+        finally:
+            conn.close()
 
     def remove_user_from_khatma(self, uid, khatma_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("DELETE FROM users WHERE id = ? AND khatma_id = ?", (uid, khatma_id))
             conn.execute("DELETE FROM hizb_assignments WHERE user_id = ? AND khatma_id = ?", (uid, khatma_id))
             conn.execute("DELETE FROM completed_hizb WHERE user_id = ? AND khatma_id = ?", (uid, khatma_id))
             conn.commit(); self.bump(); self.bump_khatma(khatma_id)
             return True
+        finally:
+            conn.close()
 
 
 # --- Bot Handlers ---
