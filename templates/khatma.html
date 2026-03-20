@@ -2835,6 +2835,12 @@
                     const data = await res.json();
 
                     if (data.success) {
+                        if (data.uid) {
+                            webUserUid = data.uid;
+                            localStorage.setItem('web_user_uid', webUserUid);
+                            localStorage.setItem('web_user_name', webUserName);
+                            localStorage.setItem('web_user_pin', webUserPin);
+                        }
                         const booked = data.booked || [];
                         const failed = data.failed || [];
 
@@ -3159,6 +3165,12 @@
                     }
 
                     if (data.success) {
+                        if (data.uid) {
+                            webUserUid = data.uid;
+                            localStorage.setItem('web_user_uid', webUserUid);
+                            localStorage.setItem('web_user_name', webUserName);
+                            localStorage.setItem('web_user_pin', webUserPin);
+                        }
                         await init();
                         openReadPrompt();
                     } else {

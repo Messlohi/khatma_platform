@@ -734,6 +734,7 @@ class DatabaseManager:
             if khatma_id:
                 # Localized reset
                 conn.execute("UPDATE khatmas SET total_khatmas = total_khatmas + 1 WHERE id = ?", (khatma_id,))
+                conn.execute("UPDATE khatmas SET deadline = '' WHERE id = ?", (khatma_id,))
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
                 conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (khatma_id,))
                 # We don't delete users or intentions for isolated Khatmas to keep membership
