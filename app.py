@@ -333,6 +333,9 @@ class DatabaseManager:
             return False
         
         conn = self.get_connection()
+        try:
+            # Check user's PIN
+            row = conn.execute("SELECT web_pin FROM users WHERE id = ?", (uid,)).fetchone()
             return row and str(row[0]) == str(pin)
         finally:
             conn.close()
@@ -612,8 +615,8 @@ class DatabaseManager:
 
     # --- Dev Tools ---
     def get_all_khatmas(self, limit=20, offset=0, query="", min_progress=0, active_since=""):
-         conn = self.get_connection()
-         try:
+        conn = self.get_connection()
+        try:
             # Join with completed count for progress
             sql = """
                 SELECT k.id, k.name, k.created_at, k.total_khatmas,
@@ -633,8 +636,6 @@ class DatabaseManager:
             
             rows = conn.execute(sql, params).fetchall()
             
-            # Post-filter for progress (easier in python than complex SQL subquery filter sometimes, but SQL is better. 
-            # Doing in python for simplicity of "current_completed / 60" logic)
             results = []
             for r in rows:
                 progress = int((r[4] / 60) * 100)
@@ -643,8 +644,6 @@ class DatabaseManager:
                 created_ts = r[2]
                 updated_ts = r[6]
                 
-                # created_at is likely already a string from SQLite default, but updated_at might be float
-                # Check types and convert
                 try:
                     if isinstance(updated_ts, (int, float)):
                         updated_ts = datetime.datetime.fromtimestamp(updated_ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -983,12 +982,13 @@ class DatabaseManager:
             # Create khatma
             conn.execute("""INSERT INTO khatmas (id, name, admin_uid, intention, deadline, total_khatmas) 
                            VALUES (?, ?, ?, ?, ?, 0)""",
-                        (khatma_id, name, admin_uid, intention, deadline))
+                        (kid, name, admin_id, intention, deadline))
             
             conn.commit()
             self.bump()
-        
-        return khatma_id, admin_uid
+            return kid, admin_id
+        finally:
+            conn.close()
     
     def get_khatma(self, khatma_id):
         conn = self.get_connection()
