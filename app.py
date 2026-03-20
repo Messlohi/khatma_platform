@@ -49,13 +49,17 @@ class DatabaseManager:
 
     def get_connection(self):
         try:
-            conn = sqlite3.connect(self.db_file, timeout=20)
-            conn.execute("SELECT 1"); return conn
-        except: return sqlite3.connect(self.db_file, timeout=20)
+            conn = sqlite3.connect(self.db_file, timeout=30) # Increased timeout
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            return conn
+        except Exception as e:
+            print(f"Connection Error: {e}")
+            return sqlite3.connect(self.db_file, timeout=30)
 
     def init_db(self):
-        with self.get_connection() as conn:
-            conn.execute("PRAGMA journal_mode=WAL") # Enable WAL for better concurrency
+        conn = self.get_connection()
+        try:
             c = conn.cursor()
             
             # Migration logic moved after table creation
@@ -165,8 +169,8 @@ class DatabaseManager:
             c.execute("INSERT OR IGNORE INTO groups (id, title, last_update) VALUES (?, ?, ?)", (GLOBAL_GID, "Main Khatma", time.time()))
             conn.commit()
             
-
-
+        finally:
+            conn.close()
 
 
     def bump(self):
@@ -189,25 +193,23 @@ class DatabaseManager:
                     (khatma_id, user_id, user_name, action, hizb_number, details)
                 )
             else:
-                with self.get_connection() as conn:
-                    conn.execute(
+                c = self.get_connection()
+                try:
+                    c.execute(
                         "INSERT INTO activity_log (khatma_id, user_id, user_name, action, hizb_number, details) VALUES (?, ?, ?, ?, ?, ?)",
                         (khatma_id, user_id, user_name, action, hizb_number, details)
                     )
-                    conn.commit()
+                    c.commit()
+                finally:
+                    c.close()
         except Exception as e:
             print(f"Error logging activity: {e}")
 
     def get_v(self, khatma_id=None):
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
-                if khatma_id:
-                    row = conn.execute("SELECT updated_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
-                    if row and row[0]:
-                        try: return float(row[0])
-                        except (ValueError, TypeError): return 0.0
-                
-                row = conn.execute("SELECT last_update FROM groups WHERE id = ?", (GLOBAL_GID,)).fetchone()
+            if khatma_id:
+                row = conn.execute("SELECT updated_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
                 if row and row[0]:
                     try: return float(row[0])
                     except (ValueError, TypeError): return 0.0
@@ -383,53 +385,56 @@ class DatabaseManager:
 
     def mark_all_done(self, user_id, khatma_id=None):
         """Mark multiple hizbs as done in a single transaction."""
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
-                conn.execute("BEGIN IMMEDIATE") # Lock for write
-                # Get user name for logging
-                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
-                user_name = user_row[0] if user_row else f"User {user_id}"
-                
-                gid = khatma_id if khatma_id else GLOBAL_GID
-                if khatma_id:
-                    hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id))).fetchall()]
-                    if not hizbs: return []
-                    conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id)))
-                    # Batch Insert
-                    items = [(gid, int(user_id), int(h), khatma_id) for h in hizbs]
-                    conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", items)
-                    # Bump metadata
-                    conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
-                else:
-                    hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
-                    if not hizbs: return []
-                    conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
-                    # Batch Insert
-                    items = [(GLOBAL_GID, int(user_id), int(h)) for h in hizbs]
-                    conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", items)
-                
-                # Global bump
-                conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
-                
-                # Log activity for each hizb (using same connection)
-                for h in hizbs:
-                    self.log_activity(khatma_id, int(user_id), user_name, 'completed', h, f"Completed all ({len(hizbs)} hizbs)", conn=conn)
-                
-                conn.commit()
-                
-                # Check for completion (use same conn)
-                if khatma_id:
-                    comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
-                else:
-                    comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
-                return "completed" if comp_count >= 60 else hizbs
+            conn.execute("BEGIN IMMEDIATE") # Lock for write
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
+            
+            gid = khatma_id if khatma_id else GLOBAL_GID
+            if khatma_id:
+                hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id))).fetchall()]
+                if not hizbs: return []
+                conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id)))
+                # Batch Insert
+                items = [(gid, int(user_id), int(h), khatma_id) for h in hizbs]
+                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", items)
+                # Bump metadata
+                conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
+            else:
+                hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
+                if not hizbs: return []
+                conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
+                # Batch Insert
+                items = [(GLOBAL_GID, int(user_id), int(h)) for h in hizbs]
+                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", items)
+            
+            # Global bump
+            conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+            
+            # Log activity (using same connection)
+            for h in hizbs:
+                self.log_activity(khatma_id, int(user_id), user_name, 'completed', h, f"Completed all ({len(hizbs)} hizbs)", conn=conn)
+            
+            conn.commit()
+            
+            # Check for completion
+            if khatma_id:
+                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
+            else:
+                comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
+            return "completed" if comp_count >= 60 else hizbs
         except Exception as e:
             import traceback; traceback.print_exc()
             print(f"ERROR: mark_all_done failed: {e}", flush=True)
             return []
+        finally:
+            conn.close()
 
     def get_available(self, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             if khatma_id:
                 taken = {r[0] for r in conn.execute(
                     "SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? UNION SELECT hizb_number FROM completed_hizb WHERE khatma_id = ?", 
@@ -439,28 +444,34 @@ class DatabaseManager:
                     "SELECT hizb_number FROM hizb_assignments WHERE group_id = ? UNION SELECT hizb_number FROM completed_hizb WHERE group_id = ?", 
                     (GLOBAL_GID, GLOBAL_GID)).fetchall()}
             return [h for h in range(1, 61) if h not in taken]
+        finally:
+            conn.close()
 
     def get_user_assignments(self, user_id, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             if khatma_id:
                 return [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", 
                                                   (khatma_id, int(user_id))).fetchall()]
             else:
                 return [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", 
                                                   (GLOBAL_GID, int(user_id))).fetchall()]
+        finally:
+            conn.close()
 
     def get_user_completions(self, user_id, khatma_id=None):
-        with self.get_connection() as conn:
-            # print(f"DEBUG: get_user_completions uid={user_id} khatma_id={khatma_id}")
+        conn = self.get_connection()
+        try:
             if khatma_id:
                 return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND khatma_id = ?", (int(user_id), khatma_id)).fetchall()]
             else:
-                 res = [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND group_id = ?", (int(user_id), GLOBAL_GID)).fetchall()]
-                 # print(f"DEBUG: global query returning {res} for GID={GLOBAL_GID}")
-                 return res
+                 return [r[0] for r in conn.execute("SELECT hizb_number FROM completed_hizb WHERE user_id = ? AND group_id = ?", (int(user_id), GLOBAL_GID)).fetchall()]
+        finally:
+            conn.close()
 
     def get_status(self, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             if khatma_id:
                 c = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
                 a = conn.execute("SELECT COUNT(*) FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
@@ -479,9 +490,12 @@ class DatabaseManager:
                 if n not in ass: ass[n] = []
                 ass[n].append(h)
             return int(c), int(a), ass
+        finally:
+            conn.close()
 
     def get_participants_activity(self, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # Filter by khatma_id if provided, otherwise use GLOBAL_GID for backward compatibility
             if khatma_id:
                 # Get Active for this Khatma
@@ -521,10 +535,13 @@ class DatabaseManager:
                 
             # Convert to list
             return [{"name": k, "active": sorted(v["active"]), "completed": sorted(v["completed"]), "id": v.get("id")} for k, v in data.items()]
+        finally:
+            conn.close()
 
 
     def get_khatma_full_details(self, khatma_id):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # 1. Basic Info
             k = conn.execute("SELECT id, name, admin_uid, intention, deadline, total_khatmas, created_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
             if not k: return None
@@ -575,10 +592,13 @@ class DatabaseManager:
                 "users": users_list,
                 "hizb_map": hizb_map
             }
+        finally:
+            conn.close()
 
     # --- Dev Tools ---
     def get_all_khatmas(self, limit=20, offset=0, query="", min_progress=0, active_since=""):
-         with self.get_connection() as conn:
+         conn = self.get_connection()
+         try:
             # Join with completed count for progress
             sql = """
                 SELECT k.id, k.name, k.created_at, k.total_khatmas,
@@ -593,11 +613,6 @@ class DatabaseManager:
                 sql += " AND (k.name LIKE ? OR k.id LIKE ?) "
                 params.extend([f"%{query}%", f"%{query}%"])
             
-            if active_since:
-                 # Ensure active_since is YYYY-MM-DD format roughly
-                 sql += " AND k.updated_at >= ?"
-                 params.append(active_since)
-
             sql += " ORDER BY k.updated_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
             
@@ -770,40 +785,42 @@ class DatabaseManager:
 
     def assign_hizb_batch(self, user_id, hizbs, khatma_id=None):
         """Assign multiple hizbs in a single exclusive transaction."""
+        conn = self.get_connection()
         try:
-            with self.get_connection() as conn:
-                conn.execute("BEGIN IMMEDIATE")
-                # Get user name for logging
-                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
-                user_name = user_row[0] if user_row else f"User {user_id}"
-                
-                gid = khatma_id if khatma_id else GLOBAL_GID
-                booked = []
-                
-                for hizb in hizbs:
-                    # Check availability
-                    row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
-                    if not row:
-                        conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
-                                   (gid, int(user_id), int(hizb), khatma_id))
-                        booked.append(int(hizb))
-                        # Log activity (using same connection)
-                        self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb, conn=conn)
-                
-                # Bump metadata
-                conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
-                if khatma_id:
-                    conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
-                
-                conn.commit()
-                self.bump()
-                return booked
+            conn.execute("BEGIN IMMEDIATE")
+            # Get user name for logging
+            user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+            user_name = user_row[0] if user_row else f"User {user_id}"
+            
+            gid = khatma_id if khatma_id else GLOBAL_GID
+            booked = []
+            
+            for hizb in hizbs:
+                # Check availability
+                row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
+                if not row:
+                    conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
+                               (gid, int(user_id), int(hizb), khatma_id))
+                    booked.append(int(hizb))
+                    # Log activity (using same connection)
+                    self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb, conn=conn)
+            
+            # Bump metadata
+            conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+            if khatma_id:
+                conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
+            
+            conn.commit()
+            return booked
         except Exception as e:
             print(f"DEBUG: assign_hizb_batch failed: {e}")
             return []
+        finally:
+            conn.close()
 
     def mark_done(self, user_id, hizb, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # Get user name for logging
             user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
             user_name = user_row[0] if user_row else f"User {user_id}"
@@ -812,13 +829,16 @@ class DatabaseManager:
             
             # Verify assignment and remove it
             c = conn.execute("DELETE FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id))
-            # if c.rowcount == 0: return False # Optional: strict check
             
             conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
                        (gid, int(user_id), int(hizb), khatma_id))
             
-            conn.commit(); self.bump()
-            if khatma_id: self.bump_khatma(khatma_id)
+            # Bump metdata
+            conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+            if khatma_id:
+                conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
+            
+            conn.commit()
             
             # Log activity
             self.log_activity(khatma_id, int(user_id), user_name, 'completed', hizb)
@@ -830,18 +850,24 @@ class DatabaseManager:
                 count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE group_id = ?", (GLOBAL_GID,)).fetchone()[0]
             
             return "completed" if count >= 60 else True
+        finally:
+            conn.close()
 
     def get_intentions(self, khatma_id=None):
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             if khatma_id:
                 rows = conn.execute("SELECT id, name, text, user_id FROM intentions WHERE khatma_id = ? ORDER BY id DESC LIMIT 50", (khatma_id,)).fetchall()
             else:
                 rows = conn.execute("SELECT id, name, text, user_id FROM intentions WHERE khatma_id IS NULL ORDER BY id DESC LIMIT 50").fetchall()
             return [{"id": r[0], "name": r[1], "text": r[2], "uid": r[3]} for r in rows]
+        finally:
+            conn.close()
 
     def reset(self, khatma_id=None, group_id=None):
         """Reset a Khatma or Group assignments in a single transaction."""
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             conn.execute("BEGIN IMMEDIATE")
             if khatma_id:
                 # Localized reset
@@ -849,8 +875,8 @@ class DatabaseManager:
                 conn.execute("UPDATE khatmas SET deadline = '' WHERE id = ?", (khatma_id,))
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? OR group_id = ?", (khatma_id, khatma_id))
                 conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ? OR group_id = ?", (khatma_id, khatma_id))
-                # We don't delete users or intentions for isolated Khatmas to keep membership
-                self.bump_khatma(khatma_id)
+                # Bump
+                conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             else:
                 target_gid = group_id if group_id else GLOBAL_GID
                 self.increment_total_completions() # Increment count on reset
@@ -862,7 +888,11 @@ class DatabaseManager:
                     # Reset deadline to 7 days from now
                     new_deadline = (datetime.datetime.now() + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M")
                     conn.execute("UPDATE settings SET value = ? WHERE key = 'deadline'", (new_deadline,))
-            conn.commit(); self.bump()
+            
+            conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_setting(self, key):
         with self.get_connection() as conn:
@@ -883,19 +913,12 @@ class DatabaseManager:
                 exists = conn.execute("SELECT 1 FROM khatmas WHERE id = ?", (kid,)).fetchone()
                 if not exists: return kid
     
-    def create_khatma(self, name, admin_name, admin_pin, intention="", deadline=None):
-        khatma_id = self.generate_khatma_id()
-        # Removed default deadline assignment
-
-        
-        with self.get_connection() as conn:
-            admin_uid = None
-            if admin_name and admin_pin:
-                # Create admin user
-                admin_uid = -int(time.time())
-                conn.execute("INSERT INTO users (id, full_name, username, web_pin, khatma_id) VALUES (?, ?, ?, ?, ?)",
-                            (admin_uid, admin_name, "web_admin", admin_pin, khatma_id))
-            
+    def create_khatma(self, name, admin_id, admin_name, admin_pin, intention="", deadline=""):
+        conn = self.get_connection()
+        try:
+            kid = self.generate_khatma_id()
+            # Register admin for this khatma
+            conn.execute("INSERT INTO users (id, full_name, web_pin, khatma_id) VALUES (?, ?, ?, ?)", (admin_id, admin_name, admin_pin, kid))
             # Create khatma
             conn.execute("""INSERT INTO khatmas (id, name, admin_uid, intention, deadline, total_khatmas) 
                            VALUES (?, ?, ?, ?, ?, 0)""",
