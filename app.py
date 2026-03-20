@@ -216,12 +216,17 @@ class DatabaseManager:
         try:
             if khatma_id:
                 row = conn.execute("SELECT updated_at FROM khatmas WHERE id = ?", (khatma_id,)).fetchone()
-                if row and row[0]:
-                    try: return float(row[0])
-                    except (ValueError, TypeError): return 0.0
-                return 0.0
+            else:
+                row = conn.execute("SELECT last_update FROM groups WHERE id = ?", (GLOBAL_GID,)).fetchone()
+            
+            if row and row[0]:
+                try: return float(row[0])
+                except (ValueError, TypeError): return 0.0
+            return 0.0
         except Exception:
             return 0.0
+        finally:
+            conn.close()
 
     def register_user(self, user_id, full_name, username):
         conn = self.get_connection()
@@ -1351,10 +1356,13 @@ def dev_reset_khatma():
     kid = d.get("khatma_id")
     if not kid: return jsonify({"error": "Missing ID"}), 400
     
-    with db.get_connection() as conn:
+    conn = db.get_connection()
+    try:
         conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (kid,))
         conn.execute("DELETE FROM completed_hizb WHERE khatma_id = ?", (kid,))
         conn.commit()
+    finally:
+        conn.close()
     db.bump(); db.bump_khatma(kid)
     return jsonify({"success": True})
 
