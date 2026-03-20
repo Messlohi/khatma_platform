@@ -382,8 +382,10 @@ class DatabaseManager:
             return False
 
     def mark_all_done(self, user_id, khatma_id=None):
+        """Mark multiple hizbs as done in a single transaction."""
         try:
             with self.get_connection() as conn:
+                conn.execute("BEGIN IMMEDIATE") # Lock for write
                 # Get user name for logging
                 user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
                 user_name = user_row[0] if user_row else f"User {user_id}"
@@ -396,6 +398,8 @@ class DatabaseManager:
                     # Batch Insert
                     items = [(gid, int(user_id), int(h), khatma_id) for h in hizbs]
                     conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", items)
+                    # Bump metadata
+                    conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
                 else:
                     hizbs = [r[0] for r in conn.execute("SELECT hizb_number FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id))).fetchall()]
                     if not hizbs: return []
@@ -404,15 +408,16 @@ class DatabaseManager:
                     items = [(GLOBAL_GID, int(user_id), int(h)) for h in hizbs]
                     conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", items)
                 
+                # Global bump
+                conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+                
                 # Log activity for each hizb (using same connection)
                 for h in hizbs:
                     self.log_activity(khatma_id, int(user_id), user_name, 'completed', h, f"Completed all ({len(hizbs)} hizbs)", conn=conn)
                 
                 conn.commit()
-                self.bump()
-                if khatma_id: self.bump_khatma(khatma_id)
                 
-                # Check for completion
+                # Check for completion (use same conn)
                 if khatma_id:
                     comp_count = conn.execute("SELECT COUNT(*) FROM completed_hizb WHERE khatma_id = ?", (khatma_id,)).fetchone()[0]
                 else:
@@ -764,9 +769,10 @@ class DatabaseManager:
             return False
 
     def assign_hizb_batch(self, user_id, hizbs, khatma_id=None):
-        """Assign multiple hizbs in a single transaction."""
+        """Assign multiple hizbs in a single exclusive transaction."""
         try:
             with self.get_connection() as conn:
+                conn.execute("BEGIN IMMEDIATE")
                 # Get user name for logging
                 user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
                 user_name = user_row[0] if user_row else f"User {user_id}"
@@ -784,9 +790,13 @@ class DatabaseManager:
                         # Log activity (using same connection)
                         self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb, conn=conn)
                 
+                # Bump metadata
+                conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
+                if khatma_id:
+                    conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
+                
                 conn.commit()
                 self.bump()
-                if khatma_id: self.bump_khatma(khatma_id)
                 return booked
         except Exception as e:
             print(f"DEBUG: assign_hizb_batch failed: {e}")
@@ -830,7 +840,9 @@ class DatabaseManager:
             return [{"id": r[0], "name": r[1], "text": r[2], "uid": r[3]} for r in rows]
 
     def reset(self, khatma_id=None, group_id=None):
+        """Reset a Khatma or Group assignments in a single transaction."""
         with self.get_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             if khatma_id:
                 # Localized reset
                 conn.execute("UPDATE khatmas SET total_khatmas = total_khatmas + 1 WHERE id = ?", (khatma_id,))
