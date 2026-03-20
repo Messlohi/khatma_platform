@@ -319,24 +319,7 @@ class DatabaseManager:
             row = conn.execute("SELECT web_pin FROM users WHERE id = ?", (uid,)).fetchone()
             return row and str(row[0]) == str(pin)
 
-    def assign_hizb(self, user_id, hizb_num, khatma_id=None):
-        try:
-            with self.get_connection() as conn:
-                gid = khatma_id if khatma_id else GLOBAL_GID
-                # Get user name for logging
-                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
-                user_name = user_row[0] if user_row else f"User {user_id}"
-                
-                conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", 
-                           (gid, int(user_id), int(hizb_num), khatma_id))
-                conn.commit(); self.bump_khatma(khatma_id); self.bump()
-                
-                # Log activity
-                self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb_num)
-                return True
-        except Exception as e:
-            print(f"DEBUG: assign_hizb failed: {e}")
-            return False
+
 
     def unassign_hizb(self, user_id, hizb_num, khatma_id=None):
         with self.get_connection() as conn:
@@ -739,14 +722,29 @@ class DatabaseManager:
             return []
 
     def assign_hizb(self, user_id, hizb, khatma_id=None):
-        with self.get_connection() as conn:
-            # Check availability
-            row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
-            if row: return False
-            conn.execute("INSERT INTO hizb_assignments (user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, datetime('now'))", (user_id, hizb, khatma_id))
-            conn.commit(); self.bump()
-            if khatma_id: self.bump_khatma(khatma_id)
-            return True
+        try:
+            with self.get_connection() as conn:
+                # Get user name for logging
+                user_row = conn.execute("SELECT full_name FROM users WHERE id = ?", (int(user_id),)).fetchone()
+                user_name = user_row[0] if user_row else f"User {user_id}"
+                
+                gid = khatma_id if khatma_id else GLOBAL_GID
+                
+                # Check availability
+                row = conn.execute("SELECT user_id FROM hizb_assignments WHERE hizb_number = ? AND khatma_id = ?", (hizb, khatma_id)).fetchone()
+                if row: return False
+                
+                conn.execute("INSERT INTO hizb_assignments (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", 
+                           (gid, int(user_id), int(hizb), khatma_id))
+                conn.commit(); self.bump()
+                if khatma_id: self.bump_khatma(khatma_id)
+                
+                # Log activity
+                self.log_activity(khatma_id, int(user_id), user_name, 'reserved', hizb)
+                return True
+        except Exception as e:
+            print(f"DEBUG: assign_hizb failed: {e}")
+            return False
 
     def mark_done(self, user_id, hizb, khatma_id=None):
         with self.get_connection() as conn:
