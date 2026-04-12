@@ -4,6 +4,7 @@ import datetime
 import asyncio
 import logging
 import time
+import random
 from flask import Flask, request, render_template, jsonify, Response, send_file
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
@@ -1281,7 +1282,10 @@ def create_khatma_api():
             deadline_formatted = None
 
         
-        khatma_id, admin_uid = db.create_khatma(name, admin_name, admin_pin, intention, deadline_formatted)
+        # Generate a unique admin_uid (Negative timestamp-based, consistent with register_web_user)
+        admin_uid = -int(time.time() * 1000 + random.randint(0, 999))
+        
+        khatma_id, admin_uid = db.create_khatma(name, admin_uid, admin_name, admin_pin, intention, deadline_formatted)
         return jsonify({"success": True, "khatma_id": khatma_id, "admin_uid": admin_uid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
