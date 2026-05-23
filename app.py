@@ -423,7 +423,7 @@ class DatabaseManager:
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id)))
                 # Batch Insert
                 items = [(gid, int(user_id), int(h), khatma_id) for h in hizbs]
-                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id) VALUES (?, ?, ?, ?)", items)
+                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, timestamp) VALUES (?, ?, ?, ?, datetime('now'))", items)
                 # Bump metadata
                 conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             else:
@@ -432,7 +432,7 @@ class DatabaseManager:
                 conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
                 # Batch Insert
                 items = [(GLOBAL_GID, int(user_id), int(h)) for h in hizbs]
-                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number) VALUES (?, ?, ?)", items)
+                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, timestamp) VALUES (?, ?, ?, datetime('now'))", items)
             
             # Global bump
             conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
@@ -805,7 +805,7 @@ class DatabaseManager:
             """
             params = (khatma_id, khatma_id, limit, offset)
             rows = conn.execute(sql, params).fetchall()
-            return [{"type": r[0], "name": r[1], "hizb": r[2], "time": r[3]} for r in rows]
+            return [{"type": r[0], "name": r[1], "hizb": r[2], "timestamp": r[3], "time": r[3]} for r in rows]
         except Exception as e:
             # If timestamp columns don't exist yet, return empty activity
             print(f"WARNING: get_recent_activity failed (likely missing columns): {e}")

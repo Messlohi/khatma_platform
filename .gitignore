@@ -6,3 +6,7 @@ instance/
 .DS_Store
 khatma-env/
 khatma_bot.code-workspace
+khatma.db-shm
+test_khatma.db-shm
+test_khatma.db-wal
+khatma.db-shm

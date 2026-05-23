@@ -45,6 +45,7 @@ The system supports multiple independent Khatmas:
 - Arabic text normalization implemented
 - Multi-tenant Khatma support added
 - Developer dashboard enhanced
+- Fixed activity log timestamp mapping key (`time` to `timestamp` in JS / API) and resolved `NULL` timestamp issues in database batch operations
 
 ## Outstanding Considerations
 

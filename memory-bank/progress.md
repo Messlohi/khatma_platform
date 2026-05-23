@@ -51,6 +51,7 @@
 - [x] Flexible Khatma Types: Support "Sahm" (random), "Manual", "sequential", and "range" selection
 - [x] Audit Log: Track who did what (reserved/returned/completed) in activity_log table
 - [x] Activity Log API endpoints for admin review
+- [x] Fixed activity feed timestamp mapping key (`time` to `timestamp` in frontend and backend) and resolved `NULL` timestamp issues in `mark_all_done` batch completions by explicitly setting `datetime('now')`. Updated all historical NULL values.
 
 ## Known Issues (Historical)
 

@@ -1,5 +1,10 @@
 # Todo List
 
+## Current Tasks
+- [x] Fix time rendering in activity feed on `templates/khatma.html` (pass `"timestamp"` in API and use it in JS)
+- [x] Fix `NULL` timestamps in `mark_all_done` in `app.py` by specifying `datetime('now')` explicitly in the batch SQL inserts
+- [x] Run a one-off database update script to fill existing `NULL` timestamps in `completed_hizb` and `hizb_assignments` to avoid empty displays for existing entries
+
 All tasks completed:
 
 - [x] Read memory bank and understand current state
