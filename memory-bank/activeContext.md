@@ -46,6 +46,7 @@ The system supports multiple independent Khatmas:
 - Multi-tenant Khatma support added
 - Developer dashboard enhanced
 - Fixed activity log timestamp mapping key (`time` to `timestamp` in JS / API) and resolved `NULL` timestamp issues in database batch operations
+- Added auto-assignment feature prompting users with no active assignments to easily claim new Hizbs sequentially or randomly based on selection type
 
 ## Outstanding Considerations
 

@@ -2070,5 +2070,56 @@ def api_join_sahm():
         traceback.print_exc()
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
+# --- Auto Assignment API ---
+@app.route("/api/join/auto", methods=["POST"])
+def api_join_auto():
+    """Automatically assign N available hizbs to a user"""
+    try:
+        d = request.get_json()
+        khatma_id = d.get("khatma_id")
+        name = d.get("name")
+        pin = d.get("pin")
+        count = int(d.get("count", 1))
+        
+        if not name: return jsonify({"error": "الاسم مطلوب"}), 400
+        if not khatma_id: khatma_id = None
+        
+        uid, s = db.register_web_user(name, pin, khatma_id)
+        if s == "wrong_pin": return jsonify({"error": "الرمز السري غير صحيح"}), 403
+        if not uid: return jsonify({"error": "Could not register user"}), 500
+        
+        # Get available hizbs
+        avail = db.get_available(khatma_id)
+        if not avail:
+            return jsonify({"error": "لا توجد أحزاب متاحة"}), 400
+            
+        # Get selection type to decide how to assign
+        selection_type = db.get_khatma_selection_type(khatma_id) if khatma_id else 'sequential'
+        
+        if selection_type == 'sahm':
+            # Random selection
+            import random
+            selected = random.sample(avail, min(count, len(avail)))
+        else:
+            # Sequential/default selection: take the first `count` available hizbs
+            selected = sorted(avail)[:min(count, len(avail))]
+            
+        booked = []
+        failed = []
+        for h in selected:
+            if db.assign_hizb(uid, int(h), khatma_id):
+                booked.append(int(h))
+            else:
+                failed.append(int(h))
+                
+        if booked:
+            return jsonify({"success": True, "uid": uid, "hizbs": booked, "failed": failed})
+        else:
+            return jsonify({"error": "فشل في تخصيص الأحزاب تلقائياً"}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
 if __name__ == "__main__": 
     app.run(port=5000, debug=True)

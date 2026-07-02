@@ -1310,6 +1310,54 @@
             align-items: center;
             gap: 5px;
         }
+        .btn-count-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .btn-count {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            border: 2px solid #e5e7eb;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-count:hover {
+            background-color: #e5e7eb;
+            transform: scale(1.05);
+        }
+        .btn-count.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 6px -1px rgba(13, 148, 136, 0.2);
+        }
+        .auto-assign-custom-input {
+            width: 70px;
+            text-align: center;
+            margin: 0;
+            padding: 8px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        .auto-assign-custom-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        }
     </style>
 </head>
 
@@ -1634,6 +1682,22 @@
                 data-t="done_all_my">إتمام كل أحزابي ✅</button>
             <button class="btn btn-secondary" onclick="returnHizb()" data-t="return_hizb">إرجاع الحزب ⚠️</button>
             <button class="btn btn-outline" onclick="closeModal()" data-t="close">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="auto-assign-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="auto-assign-title" data-t="auto_assign_title">كم حزباً تريد قراءته؟</h3>
+            <p id="auto-assign-desc" data-t="auto_assign_desc" style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5;"></p>
+            <div class="btn-count-container">
+                <button class="btn-count" onclick="selectAutoAssignCount(1, this)">1</button>
+                <button class="btn-count" onclick="selectAutoAssignCount(2, this)">2</button>
+                <button class="btn-count" onclick="selectAutoAssignCount(3, this)">3</button>
+                <button class="btn-count" onclick="selectAutoAssignCount(4, this)">4</button>
+                <input type="number" id="auto-assign-custom-count" class="auto-assign-custom-input" min="1" max="60" placeholder="أخرى" oninput="onCustomCountInput(this)">
+            </div>
+            <button class="btn btn-primary" onclick="confirmAutoAssign()" data-t="auto_assign_btn">حجز تلقائي ✅</button>
+            <button class="btn btn-outline" onclick="closeAutoAssignModal()" data-t="close">إلغاء</button>
         </div>
     </div>
 
@@ -2017,7 +2081,12 @@
                     hizb_label: "حزب",
                     selected_hizbs: "أحزاب محددة",
                     join_selected: "حجز المحدد",
-                    confirm_multi: "تأكيد حجز {count} أحزاب؟"
+                    confirm_multi: "تأكيد حجز {count} أحزاب؟",
+                    auto_assign_title: "كم حزباً تريد قراءته؟",
+                    auto_assign_desc: "ليس لديك أي أحزاب محجوزة حالياً. حدد عدد الأحزاب ليتم تخصيصها لك تلقائياً:",
+                    auto_assign_btn: "حجز تلقائي ✅",
+                    auto_assign_result_title: "تم الحجز بنجاح! ✨",
+                    auto_assign_result_text: "تم تخصيص الأحزاب التالية لك بنجاح: {hizbs} 🎉"
                 },
                 en: {
                     title: "Quran Khatma",
@@ -2133,7 +2202,12 @@
                     hizb_label: "Hizb",
                     selected_hizbs: "Selected Hizbs",
                     join_selected: "Join Selected",
-                    confirm_multi: "Confirm booking {count} Hizbs?"
+                    confirm_multi: "Confirm booking {count} Hizbs?",
+                    auto_assign_title: "How many Hizbs do you want to read?",
+                    auto_assign_desc: "You don't have any booked Hizbs right now. Select a count to assign them to you automatically:",
+                    auto_assign_btn: "Auto Assign ✅",
+                    auto_assign_result_title: "Successfully Assigned! ✨",
+                    auto_assign_result_text: "The following Hizbs have been successfully assigned to you: {hizbs} 🎉"
                 },
                 fr: {
                     title: "Khatma du Coran",
@@ -2249,7 +2323,12 @@
                     hizb_label: "Hizb",
                     selected_hizbs: "Hizbs sélectionnés",
                     join_selected: "Rejoindre",
-                    confirm_multi: "Confirmer {count} Hizbs ?"
+                    confirm_multi: "Confirmer {count} Hizbs ?",
+                    auto_assign_title: "Combien de Hizbs voulez-vous lire ?",
+                    auto_assign_desc: "Vous n'avez aucun Hizb réservé pour le moment. Choisissez un nombre pour vous les attribuer automatiquement :",
+                    auto_assign_btn: "Assignation Auto ✅",
+                    auto_assign_result_title: "Assigné avec succès ! ✨",
+                    auto_assign_result_text: "Les Hizbs suivants vous ont été attribués avec succès : {hizbs} 🎉"
                 }
             };
 
@@ -2588,6 +2667,8 @@
 
                     if (!webUserUid) {
                         setTimeout(() => openJoinModal(null), 800);
+                    } else if ((!myAssignments || myAssignments.length === 0) && !sessionStorage.getItem('auto_assign_prompted')) {
+                        setTimeout(() => openAutoAssignModal(), 800);
                     }
                 } catch (e) {
                     console.error("Initialization error:", e);
@@ -3185,6 +3266,82 @@
             }
             function closeModal() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 
+            let autoAssignCountSelected = 1;
+            function openAutoAssignModal() {
+                const descEl = document.getElementById('auto-assign-desc');
+                if (descEl) {
+                    descEl.innerText = i18n[currentLang].auto_assign_desc;
+                }
+                
+                document.getElementById('auto-assign-custom-count').value = '';
+                
+                const firstBtn = document.querySelector('.btn-count-container .btn-count');
+                if (firstBtn) {
+                    selectAutoAssignCount(1, firstBtn);
+                }
+                
+                document.getElementById('auto-assign-modal').style.display = 'flex';
+            }
+            
+            function closeAutoAssignModal() {
+                document.getElementById('auto-assign-modal').style.display = 'none';
+                sessionStorage.setItem('auto_assign_prompted', 'true');
+            }
+            
+            function selectAutoAssignCount(count, btn) {
+                autoAssignCountSelected = count;
+                document.querySelectorAll('.btn-count').forEach(b => b.classList.remove('active'));
+                document.getElementById('auto-assign-custom-count').value = '';
+                if (btn) btn.classList.add('active');
+            }
+            
+            function onCustomCountInput(input) {
+                document.querySelectorAll('.btn-count').forEach(b => b.classList.remove('active'));
+                const val = parseInt(input.value);
+                if (!isNaN(val) && val >= 1 && val <= 60) {
+                    autoAssignCountSelected = val;
+                }
+            }
+            
+            async function confirmAutoAssign() {
+                if (!webUserName) {
+                    closeAutoAssignModal();
+                    openJoinModal(null);
+                    return;
+                }
+                
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/join/auto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: webUserName,
+                            pin: webUserPin,
+                            khatma_id: khatmaId,
+                            count: autoAssignCountSelected
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    showLoading(false);
+                    if (data.success) {
+                        closeAutoAssignModal();
+                        await init();
+                        
+                        const hizbsText = data.hizbs.join(', ');
+                        const successMsg = i18n[currentLang].auto_assign_result_text.replace('{hizbs}', hizbsText);
+                        await customAlert(successMsg, i18n[currentLang].auto_assign_result_title, '✨');
+                    } else {
+                        await customAlert(data.error || "Error", '', '❌');
+                    }
+                } catch (e) {
+                    showLoading(false);
+                    console.error("Auto Assign error:", e);
+                    await customAlert(i18n[currentLang].alert_connection_error, '', '❌');
+                }
+            }
+
             // Custom confirm function to replace native confirm() and prevent flickering
             function customConfirm(message, title = '') {
                 return new Promise((resolve) => {
@@ -3756,6 +3913,10 @@
 
             function closeAchievementModal() {
                 document.getElementById('achievement-modal').style.display = 'none';
+                if (webUserUid && (!myAssignments || myAssignments.length === 0)) {
+                    sessionStorage.removeItem('auto_assign_prompted');
+                    openAutoAssignModal();
+                }
             }
 
             async function generateShareCard(mode = 'download') {
