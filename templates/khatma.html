@@ -1952,13 +1952,20 @@
 
         <script>
             // Initialization Logic moved to init() and global scope
-            // Validating session
-            let _uid = localStorage.getItem('web_user_uid');
-            let _name = localStorage.getItem('web_user_name');
+
+            // --- Session key helper: scopes session data to the current khatma ---
+            // khatmaId is rendered by Jinja2 on the server, available immediately.
+            function sessionKey(base) {
+                return (typeof khatmaId !== 'undefined' && khatmaId) ? (base + '_' + khatmaId) : base;
+            }
+
+            // Validating session (scoped to this khatma)
+            let _uid = localStorage.getItem(sessionKey('web_user_uid'));
+            let _name = localStorage.getItem(sessionKey('web_user_name'));
             if (_uid && (_uid === 'null' || _uid === 'undefined' || !_name)) {
-                localStorage.removeItem('web_user_uid');
-                localStorage.removeItem('web_user_name');
-                localStorage.removeItem('web_user_pin');
+                localStorage.removeItem(sessionKey('web_user_uid'));
+                localStorage.removeItem(sessionKey('web_user_name'));
+                localStorage.removeItem(sessionKey('web_user_pin'));
                 // Refresh global vars just in case
                 if (typeof webUserUid !== 'undefined') webUserUid = null;
             }
@@ -2359,9 +2366,9 @@
                 document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
             }
             let serverVersion = 0;
-            let webUserUid = localStorage.getItem('web_user_uid');
-            let webUserName = localStorage.getItem('web_user_name');
-            let webUserPin = localStorage.getItem('web_user_pin');
+            let webUserUid  = localStorage.getItem(sessionKey('web_user_uid'));
+            let webUserName = localStorage.getItem(sessionKey('web_user_name'));
+            let webUserPin  = localStorage.getItem(sessionKey('web_user_pin'));
 
             function getKhatmaIdFromUrl() {
                 const path = window.location.pathname;
@@ -2640,9 +2647,9 @@
                 updateUI();
                 showLoading(true);
                 try {
-                    // Check if user is admin of THIS Khatma
-                    const isAdmin = localStorage.getItem('is_admin') === 'true';
-                    const adminKhatmaId = localStorage.getItem('admin_khatma_id');
+                    // Check if user is admin of THIS Khatma (scoped to this khatma)
+                    const isAdmin = localStorage.getItem(sessionKey('is_admin')) === 'true';
+                    const adminKhatmaId = localStorage.getItem(sessionKey('admin_khatma_id'));
 
                     if (isAdmin && adminKhatmaId === khatmaId && webUserUid) {
                         // User is admin of this Khatma - open control panel directly
@@ -3418,7 +3425,7 @@
                         const data = await res.json();
                         if (data.success) {
                             webUserName = "Admin"; webUserUid = "admin"; webUserPin = pin;
-                            localStorage.setItem('web_user_uid', 'admin'); localStorage.setItem('web_user_name', 'Admin'); localStorage.setItem('web_user_pin', pin);
+                            localStorage.setItem(sessionKey('web_user_uid'), 'admin'); localStorage.setItem(sessionKey('web_user_name'), 'Admin'); localStorage.setItem(sessionKey('web_user_pin'), pin);
                             closeModal(); await init(); return;
                         } else { showLoading(false); await customAlert(data.error, '', '❌'); return; }
                     }
@@ -3449,12 +3456,12 @@
 
                     if (data.success) {
                         webUserUid = data.uid; webUserName = name; webUserPin = pin;
-                        localStorage.setItem('web_user_uid', webUserUid); localStorage.setItem('web_user_name', webUserName); localStorage.setItem('web_user_pin', webUserPin);
+                        localStorage.setItem(sessionKey('web_user_uid'), webUserUid); localStorage.setItem(sessionKey('web_user_name'), webUserName); localStorage.setItem(sessionKey('web_user_pin'), webUserPin);
 
                         // Check if user is admin - redirect to admin panel
                         if (data.is_admin) {
-                            localStorage.setItem('is_admin', 'true');
-                            localStorage.setItem('admin_khatma_id', khatmaId); // Store which khatma they are admin of
+                            localStorage.setItem(sessionKey('is_admin'), 'true');
+                            localStorage.setItem(sessionKey('admin_khatma_id'), khatmaId); // Store which khatma they are admin of
                             closeModal();
                             await init();
                             return;
@@ -4075,7 +4082,13 @@
             async function logout() {
                 const confirmed = await customConfirm(i18n[currentLang].confirm_logout);
                 if (confirmed) {
-                    localStorage.clear();
+                    // Only clear session keys for THIS khatma — preserves dark mode, lang prefs, etc.
+                    localStorage.removeItem(sessionKey('web_user_uid'));
+                    localStorage.removeItem(sessionKey('web_user_name'));
+                    localStorage.removeItem(sessionKey('web_user_pin'));
+                    localStorage.removeItem(sessionKey('is_admin'));
+                    localStorage.removeItem(sessionKey('admin_khatma_id'));
+                    webUserUid = null; webUserName = null; webUserPin = null;
                     window.location.reload();
                 }
             }
@@ -4325,9 +4338,9 @@
                     if (data.success) {
                         webUserName = newName;
                         webUserPin = newPin; // Update local state
-                        localStorage.setItem('web_user_name', newName);
-                        if (newPin) localStorage.setItem('web_user_pin', newPin);
-                        else localStorage.removeItem('web_user_pin');
+                        localStorage.setItem(sessionKey('web_user_name'), newName);
+                        if (newPin) localStorage.setItem(sessionKey('web_user_pin'), newPin);
+                        else localStorage.removeItem(sessionKey('web_user_pin'));
 
                         // Update button text immediately
                         const userMenuName = document.getElementById('user-menu-name');
