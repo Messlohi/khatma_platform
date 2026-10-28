@@ -1358,6 +1358,272 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
         }
+
+        /* Admin: assignment manager */
+        .admin-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            background: #f3f4f6;
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .admin-tab {
+            flex: 1;
+            min-width: 110px;
+            border: none;
+            background: transparent;
+            padding: 9px 10px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #4b5563;
+            transition: 0.2s;
+        }
+        .admin-tab.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+        .admin-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+        }
+        .admin-tool-btn {
+            width: auto;
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+        .admin-bulk-add {
+            background: #f0fdf4;
+            border: 1px dashed #10b981;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .admin-bulk-add label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #065f46;
+            margin-bottom: 6px;
+        }
+        .admin-bulk-add textarea {
+            width: 100%;
+            padding: 9px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        .admin-bulk-add-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .admin-bulk-add-actions small {
+            color: #6b7280;
+            font-size: 0.75rem;
+            flex: 1;
+            min-width: 200px;
+        }
+        .admin-warning {
+            background: #fffbeb;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        .admin-warning button {
+            width: auto;
+            margin: 6px 0 0;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            border: none;
+            border-radius: 8px;
+            background: #b45309;
+            color: #fff;
+            cursor: pointer;
+        }
+        .assignment-quota {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #4b5563;
+        }
+        .assignment-quota input {
+            width: 55px;
+            padding: 4px 6px;
+            margin: 0;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        .assignment-row {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #fff;
+        }
+        .assignment-row-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .assignment-name {
+            font-weight: 700;
+            color: #1f2937;
+            font-size: 0.92rem;
+        }
+        .assignment-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .assignment-action {
+            border: 1px solid #d1d5db;
+            background: #fff;
+            border-radius: 8px;
+            padding: 4px 9px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            color: #374151;
+        }
+        .assignment-action:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .assignment-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .hizb-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 20px;
+            padding: 3px 9px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: 0.15s;
+        }
+        .hizb-chip.active {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+        .hizb-chip.completed {
+            background: #d1fae5;
+            color: #065f46;
+            border-color: #6ee7b7;
+        }
+        .hizb-chip.empty {
+            background: #f3f4f6;
+            color: #9ca3af;
+            border-color: #e5e7eb;
+            cursor: default;
+        }
+        .admin-hizb-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+            gap: 5px;
+        }
+        .matrix-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 7px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: #f3f4f6;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            cursor: default;
+        }
+        .matrix-cell.active {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+        .matrix-cell.completed {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .rotation-status-card {
+            background: linear-gradient(135deg, #065f46, #064e3b);
+            color: #fff;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+        .rotation-status-card b {
+            color: #fbbf24;
+        }
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0 14px;
+        }
+        #admin-tab-rules label {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        #admin-tab-rules input:not([type=checkbox]),
+        #admin-tab-rules select {
+            padding: 9px;
+            margin: 0;
+        }
+        #admin-tab-rules input[type=checkbox] {
+            width: auto;
+            padding: 0;
+            margin: 0 6px 0 0;
+            vertical-align: middle;
+        }
+        .rules-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+        .assign-modal-cell.selected {
+            outline: 3px solid #10b981;
+            background: #ecfdf5;
+            color: #065f46;
+        }
+        .assign-modal-cell.taken {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -1562,26 +1828,120 @@
             <h3 style="margin-bottom: 15px; color: var(--secondary);" data-t="admin_panel_title">👑 لوحة التحكم (السوبر
                 يوزر)</h3>
 
-            <!-- User Search Filter -->
-            <div style="margin-bottom: 15px;">
-                <input type="text" id="admin-user-search" placeholder="🔍 بحث عن مستخدم..."
-                    style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;"
-                    oninput="filterAdminUsers(this.value)">
+            <!-- Admin tabs -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showAdminTab('users', this)">👥 المستخدمون</button>
+                <button class="admin-tab" onclick="showAdminTab('assign', this)">🗂️ توزيع الأحزاب</button>
+                <button class="admin-tab" onclick="showAdminTab('rules', this)">🔁 قواعد الختمة</button>
             </div>
 
-            <div style="overflow: visible;">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th data-t="admin_col_name">الاسم</th>
-                            <th data-t="admin_col_active">نشط</th>
-                            <th data-t="admin_col_completed">منتهي</th>
-                            <th data-t="admin_col_actions">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-user-list"></tbody>
-                </table>
+            <div id="admin-tab-users">
+                <!-- User Search Filter -->
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="admin-user-search" placeholder="🔍 بحث عن مستخدم..."
+                        style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;"
+                        oninput="filterAdminUsers(this.value)">
+                </div>
+
+                <div style="overflow: visible;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th data-t="admin_col_name">الاسم</th>
+                                <th data-t="admin_col_active">نشط</th>
+                                <th data-t="admin_col_completed">منتهي</th>
+                                <th data-t="admin_col_actions">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-user-list"></tbody>
+                    </table>
+                </div>
             </div>
+
+            <!-- Assignment Manager -->
+            <div id="admin-tab-assign" style="display: none;">
+                <div id="rotation-status-card" class="rotation-status-card" style="display: none;"></div>
+                <div id="admin-coverage-warning" class="admin-warning" style="display: none;"></div>
+
+                <div class="admin-bulk-add">
+                    <label for="admin-new-members">👥 إضافة مشاركين بالاسم (اسم في كل سطر)</label>
+                    <textarea id="admin-new-members" rows="3"
+                        placeholder="مثال:&#10;أحمد محمد&#10;سارة علي: 3&#10;عبد الله حسن"></textarea>
+                    <div class="admin-bulk-add-actions">
+                        <small>في وضع التدوير يُوزَّع عليهم تلقائياً. لتحديد نصيب مختلف اكتب «الاسم: العدد».</small>
+                        <button class="btn btn-primary admin-tool-btn" onclick="adminAddMembers()">➕ إضافة المشاركين</button>
+                    </div>
+                </div>
+
+                <div class="admin-toolbar">
+                    <label style="margin: 0; font-size: 0.85rem; color: #374151;">أحزاب لكل شخص</label>
+                    <input type="number" id="admin-bulk-per-person" value="2" min="1" max="60"
+                        style="width: 70px; padding: 8px; margin: 0; text-align: center;">
+                    <button class="btn btn-primary admin-tool-btn" onclick="adminAutoDistribute()">⚖️ توزيع
+                        تلقائي</button>
+                    <button class="btn btn-secondary admin-tool-btn" onclick="adminStartRotation()">🔁 بدء
+                        التدوير</button>
+                    <button class="btn btn-outline admin-tool-btn" onclick="adminCloseRound()">🌙 إغلاق اليوم</button>
+                    <button class="btn btn-outline admin-tool-btn" onclick="adminClearAssignments()">🗑️ مسح
+                        التوزيع</button>
+                </div>
+
+                <div id="admin-assignment-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;"></div>
+
+                <h4 style="margin: 22px 0 10px;">🗺️ خريطة الأحزاب</h4>
+                <div id="admin-hizb-matrix" class="admin-hizb-matrix"></div>
+            </div>
+
+            <!-- Custom rules -->
+            <div id="admin-tab-rules" style="display: none;">
+                <div class="rules-grid">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>🔁 وضع الختمة</label>
+                        <select id="rules-mode">
+                            <option value="open">يدوي (حجز حر)</option>
+                            <option value="rotation">تدوير يومي تلقائي</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>📚 أحزاب لكل شخص</label>
+                        <input type="number" id="rules-per-person" min="1" max="60">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>⏭️ مقدار التدوير اليومي</label>
+                        <input type="number" id="rules-step" min="1" max="60">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>⏳ عدد الأيام</label>
+                        <input type="number" id="rules-days" min="1" max="365">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>📅 تاريخ البداية</label>
+                        <input type="date" id="rules-start-date">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>🌙 وقت إغلاق اليوم</label>
+                        <input type="time" id="rules-eod-time">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>✅ إغلاق اليوم</label>
+                        <select id="rules-confirm">
+                            <option value="auto">تلقائي بعد نهاية اليوم</option>
+                            <option value="admin">بانتظار تأكيد الأدمن</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="rules-auto-complete" style="width: auto;">
+                        <label for="rules-auto-complete" style="margin: 0; font-size: 0.9rem;">احتساب غير المكتمل
+                            كمنتهٍ عند إغلاق اليوم</label>
+                    </div>
+                </div>
+                <p style="font-size: 0.8rem; color: #6b7280; margin-bottom: 10px;">
+                    مثال: 30 مشاركاً × حزبان لكل شخص = 60 حزباً كل يوم. مع تدوير بمقدار 2 يقرأ كل مشارك القرآن
+                    كاملاً خلال 30 يوماً.
+                </p>
+                <button class="btn btn-primary" onclick="saveRotationRules()">💾 حفظ القواعد</button>
+            </div>
+
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
                 <h4 data-t="settings_title">⚙️ إعدادات عامة</h4>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -1698,6 +2058,22 @@
             </div>
             <button class="btn btn-primary" onclick="confirmAutoAssign()" data-t="auto_assign_btn">حجز تلقائي ✅</button>
             <button class="btn btn-outline" onclick="closeAutoAssignModal()" data-t="close">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- Admin: per-user assignment modal -->
+    <div id="assign-modal" class="modal">
+        <div class="modal-content" style="max-width: 520px; max-height: 90vh; overflow-y: auto;">
+            <h3 id="assign-modal-title" style="margin-bottom: 8px;">توزيع الأحزاب</h3>
+            <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px;">
+                اضغط على الحزب لتحديده أو إلغائه. الأخضر = منتهٍ، البرتقالي = محجوز.
+            </p>
+            <div id="assign-modal-grid" class="hizb-grid"
+                style="grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));"></div>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+                <button class="btn btn-primary" style="flex: 1; margin: 0;" onclick="saveAssignModal()">💾 حفظ</button>
+                <button class="btn btn-outline" style="flex: 1; margin: 0;" onclick="closeModal()">إلغاء</button>
+            </div>
         </div>
     </div>
 
@@ -1954,9 +2330,11 @@
             // Initialization Logic moved to init() and global scope
 
             // --- Session key helper: scopes session data to the current khatma ---
-            // khatmaId is rendered by Jinja2 on the server, available immediately.
+            // Declared before sessionKey() so the helper never hits the TDZ.
+            let khatmaId = getKhatmaIdFromUrl();
+
             function sessionKey(base) {
-                return (typeof khatmaId !== 'undefined' && khatmaId) ? (base + '_' + khatmaId) : base;
+                return khatmaId ? (base + '_' + khatmaId) : base;
             }
 
             // Validating session (scoped to this khatma)
@@ -2349,7 +2727,6 @@
 
             // Global State
             let currentLang = 'ar';
-            let khatmaId = getKhatmaIdFromUrl();
             let hizbData = {}; // Store status of 60 hizbs
             let isDarkMode = localStorage.getItem('dark-mode') === 'true';
 
@@ -3421,12 +3798,16 @@
                 try {
                     // Check if admin login
                     if (name === "Admin") {
-                        const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin }) });
+                        const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin, khatma_id: khatmaId }) });
                         const data = await res.json();
                         if (data.success) {
-                            webUserName = "Admin"; webUserUid = "admin"; webUserPin = pin;
-                            localStorage.setItem(sessionKey('web_user_uid'), 'admin'); localStorage.setItem(sessionKey('web_user_name'), 'Admin'); localStorage.setItem(sessionKey('web_user_pin'), pin);
-                            closeModal(); await init(); return;
+                            webUserName = name; webUserUid = data.uid || 'admin'; webUserPin = pin;
+                            localStorage.setItem(sessionKey('web_user_uid'), webUserUid);
+                            localStorage.setItem(sessionKey('web_user_name'), webUserName);
+                            localStorage.setItem(sessionKey('web_user_pin'), pin);
+                            localStorage.setItem(sessionKey('is_admin'), 'true');
+                            localStorage.setItem(sessionKey('admin_khatma_id'), khatmaId);
+                            closeModal(); await init(true); return;
                         } else { showLoading(false); await customAlert(data.error, '', '❌'); return; }
                     }
 
@@ -3544,6 +3925,7 @@
                 }
 
                 showLoading(false);
+                await loadAssignmentBoard();
                 document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
             }
 
@@ -3582,6 +3964,597 @@
             function closeAdmin() {
                 document.getElementById('admin-panel').style.display = 'none';
                 document.getElementById('open-admin-btn').style.display = 'inline-block';
+            }
+
+            // ── Admin: assignment manager & custom rules ─────────
+            let adminBoard = null;
+            let assignTargetUid = null;
+            let assignSelected = new Set();
+
+            function escapeHtml(s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
+            function escapeJs(s) {
+                return String(s == null ? '' : s)
+                    .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+            }
+
+            function showAdminTab(tab, btn) {
+                ['users', 'assign', 'rules'].forEach(t => {
+                    const el = document.getElementById('admin-tab-' + t);
+                    if (el) el.style.display = t === tab ? 'block' : 'none';
+                });
+                document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+                if (btn) btn.classList.add('active');
+                if (tab === 'assign') loadAssignmentBoard();
+                if (tab === 'rules') fillRulesForm();
+            }
+
+            async function loadAssignmentBoard() {
+                if (!khatmaId || !webUserUid) return;
+                try {
+                    const res = await fetch(
+                        `/api/admin/assignment_board?khatma_id=${encodeURIComponent(khatmaId)}&uid=${encodeURIComponent(webUserUid)}`,
+                        { headers: { 'X-Admin-Pin': webUserPin || '' } }
+                    );
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (!data.success) return;
+                    adminBoard = data;
+                    renderAssignmentBoard();
+                    fillRulesForm();
+                } catch (e) {
+                    console.error('Assignment board error:', e);
+                }
+            }
+
+            function hizbOwnerName(uid) {
+                if (!adminBoard || !adminBoard.users) return '';
+                const u = adminBoard.users.find(x => String(x.id) === String(uid));
+                return u ? u.name : '';
+            }
+
+            function renderAssignmentBoard() {
+                if (!adminBoard) return;
+                const rules = adminBoard.rules || {};
+                const eod = adminBoard.eod || {};
+
+                const card = document.getElementById('rotation-status-card');
+                if (rules.mode === 'rotation') {
+                    card.style.display = 'block';
+                    const next = eod.finished
+                        ? 'انتهى البرنامج'
+                        : (eod.overdue
+                            ? `⚠️ متأخرة (${eod.next_eod}) — بانتظار إغلاق اليوم`
+                            : (eod.next_eod || '-'));
+                    card.innerHTML = `🔁 <b>وضع التدوير اليومي</b> — اليوم <b>${eod.active_round || 1}</b> من <b>${eod.rotation_days || rules.rotation_days || 30}</b><br>
+                        ⏳ نهاية اليوم الحالي: <b>${next}</b><br>
+                        ✅ إغلاق اليوم: <b>${eod.require_eod_confirm ? 'بانتظار تأكيد الأدمن' : 'تلقائي'}</b>
+                        ${eod.finished ? '<br>🎉 اكتمل برنامج التدوير' : ''}`;
+                } else {
+                    card.style.display = 'none';
+                }
+
+                const perInput = document.getElementById('admin-bulk-per-person');
+                if (perInput && document.activeElement !== perInput) {
+                    perInput.value = rules.hizbs_per_person || 2;
+                }
+
+                const list = document.getElementById('admin-assignment-list');
+                list.innerHTML = '';
+                const users = adminBoard.users || [];
+                if (!users.length) {
+                    list.innerHTML = '<p style="text-align:center;color:#9ca3af;">لا يوجد مشاركون بعد.</p>';
+                }
+
+                const unassigned = adminBoard.unassigned_hizbs || [];
+                const shortfall = adminBoard.shortfall || 0;
+                const quotaWarnings = adminBoard.quota_warnings || [];
+                const warn = document.getElementById('admin-coverage-warning');
+                if (warn) {
+                    if (rules.mode === 'rotation' && (unassigned.length || shortfall || quotaWarnings.length)) {
+                        let msg = '';
+                        if (unassigned.length) {
+                            msg += `⚠️ يوجد <b>${unassigned.length}</b> حزباً غير موزع في اليوم الحالي (${adminBoard.coverage || 0}/60).`;
+                        }
+                        if (shortfall) {
+                            msg += `${msg ? '<br>' : ''}⚠️ <b>${shortfall}</b> حزباً من نصيب المشاركين لم يُسند بعد، قد يكون العدد أكبر من طاقة اليوم (60 حزباً).`;
+                        }
+                        if (quotaWarnings.length) {
+                            const names = quotaWarnings.slice(0, 3).map(q => escapeHtml(q.name || q.uid)).join('، ');
+                            msg += `${msg ? '<br>' : ''}⚠️ نصيب ${names}${quotaWarnings.length > 3 ? ' وآخرون' : ''} أقل من مقدار التدوير (${quotaWarnings[0].step})، لذا قد لا يقرأون كل الأحزاب.`;
+                        }
+                        if (shortfall) {
+                            msg += `<br><button onclick="adminFillGaps()">⚖️ توزيع المتبقي تلقائياً</button>`;
+                        } else if (unassigned.length) {
+                            msg += `<br><small>لتغطية بقية الأحزاب أضف مشاركين أو ارفع نصيب الأفراد.</small>`;
+                        }
+                        warn.innerHTML = msg;
+                        warn.style.display = 'block';
+                    } else {
+                        warn.style.display = 'none';
+                    }
+                }
+
+                users.forEach(u => {
+                    const row = document.createElement('div');
+                    row.className = 'assignment-row';
+
+                    const active = Object.entries(adminBoard.hizb_map || {})
+                        .filter(([h, v]) => v.status === 'active' && String(v.uid) === String(u.id))
+                        .map(([h]) => parseInt(h)).sort((a, b) => a - b);
+                    const completed = Object.entries(adminBoard.hizb_map || {})
+                        .filter(([h, v]) => v.status === 'completed' && String(v.uid) === String(u.id))
+                        .map(([h]) => parseInt(h)).sort((a, b) => a - b);
+
+                    const chips = [
+                        ...completed.map(h => `<span class="hizb-chip completed">✅ ${h}</span>`),
+                        ...active.map(h => `<span class="hizb-chip active">📖 ${h}</span>`)
+                    ].join('') || '<span class="hizb-chip empty">لا توجد أحزاب</span>';
+
+                    const slotBadge = u.is_member
+                        ? `<span style="font-size:0.7rem;background:#eef2ff;color:#3730a3;border-radius:10px;padding:2px 7px;">دور ${(u.slot ?? 0) + 1}</span>`
+                        : `<span style="font-size:0.7rem;background:#f3f4f6;color:#6b7280;border-radius:10px;padding:2px 7px;">خارج التدوير</span>`;
+
+                    row.innerHTML = `
+                        <div class="assignment-row-head">
+                            <div class="assignment-name">${escapeHtml(u.name)} ${slotBadge}
+                                <span style="font-weight:400;color:#6b7280;font-size:0.75rem;">(${u.active} نشط / ${u.completed} منتهٍ)</span>
+                            </div>
+                            <div class="assignment-actions">
+                                ${rules.mode === 'rotation'
+                                    ? `<div class="assignment-quota">🎯 نصيب/شخص <input type="number" min="1" max="60" value="${u.per_person}" onchange="adminSetMemberPer('${u.id}', this.value)"></div>`
+                                    : ''}
+                                <button class="assignment-action" onclick="openAssignModal('${u.id}', '${escapeJs(u.name)}')">🗂️ توزيع</button>
+                                <button class="assignment-action" onclick="adminCompleteUserHizbs('${u.id}')">✅ إتمام الكل</button>
+                                <button class="assignment-action" onclick="adminClearUserHizbs('${u.id}')">♻️ تفريغ</button>
+                                <button class="assignment-action" onclick="adminToggleMember('${u.id}', ${u.member_active ? 0 : 1})">${u.member_active ? '🚫 استبعاد' : '➕ إشراك'}</button>
+                            </div>
+                        </div>
+                        <div class="assignment-chips">${chips}</div>
+                    `;
+                    list.appendChild(row);
+                });
+
+                const matrix = document.getElementById('admin-hizb-matrix');
+                matrix.innerHTML = '';
+                for (let h = 1; h <= 60; h++) {
+                    const info = (adminBoard.hizb_map || {})[h];
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell' + (info ? ' ' + info.status : '');
+                    cell.textContent = h;
+                    cell.title = info
+                        ? `${h}: ${hizbOwnerName(info.uid)} (${info.status === 'completed' ? 'منتهٍ' : 'محجوز'})`
+                        : `${h}: متاح`;
+                    matrix.appendChild(cell);
+                }
+            }
+
+            function openAssignModal(uid, name) {
+                if (!adminBoard) return;
+                assignTargetUid = uid;
+                assignSelected = new Set();
+
+                Object.entries(adminBoard.hizb_map || {})
+                    .filter(([h, v]) => String(v.uid) === String(uid))
+                    .forEach(([h]) => assignSelected.add(parseInt(h)));
+
+                document.getElementById('assign-modal-title').textContent = `توزيع الأحزاب — ${name}`;
+                const grid = document.getElementById('assign-modal-grid');
+                grid.innerHTML = '';
+
+                for (let h = 1; h <= 60; h++) {
+                    const info = (adminBoard.hizb_map || {})[h];
+                    const btn = document.createElement('button');
+                    btn.className = 'hizb-btn assign-modal-cell';
+                    btn.textContent = h;
+                    if (info && String(info.uid) !== String(uid)) {
+                        btn.classList.add('taken');
+                        btn.title = 'محجوز لدى ' + hizbOwnerName(info.uid);
+                    } else if (info) {
+                        if (info.status === 'completed') {
+                            btn.classList.add('completed', 'taken');
+                            btn.title = 'تم إتمامه';
+                        } else {
+                            btn.classList.add('my-hizb');
+                        }
+                    }
+                    if (assignSelected.has(h)) btn.classList.add('selected');
+                    btn.onclick = () => toggleAssignCell(btn, h);
+                    grid.appendChild(btn);
+                }
+                document.getElementById('assign-modal').style.display = 'flex';
+            }
+
+            function toggleAssignCell(btn, h) {
+                if (btn.classList.contains('taken')) return;
+                if (assignSelected.has(h)) assignSelected.delete(h);
+                else assignSelected.add(h);
+                btn.classList.toggle('selected');
+            }
+
+            async function saveAssignModal() {
+                if (!adminBoard || assignTargetUid == null) return;
+                const current = new Set(Object.entries(adminBoard.hizb_map || {})
+                    .filter(([h, v]) => v.status === 'active' && String(v.uid) === String(assignTargetUid))
+                    .map(([h]) => parseInt(h)));
+
+                const assign = [...assignSelected].filter(h => !current.has(h));
+                const unassign = [...current].filter(h => !assignSelected.has(h));
+                await adminSaveChanges([{ uid: parseInt(assignTargetUid), assign, unassign }]);
+                closeModal();
+            }
+
+            async function adminSaveChanges(changes) {
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/assignment/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid,
+                            admin_pin: webUserPin, changes
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        if (data.errors && data.errors.length) {
+                            await customAlert(data.errors.join('\n'), '', '⚠️');
+                        }
+                    } else {
+                        await customAlert(data.error || 'فشل الحفظ', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminCompleteUserHizbs(uid) {
+                if (!adminBoard) return;
+                const hizbs = Object.entries(adminBoard.hizb_map || {})
+                    .filter(([h, v]) => v.status === 'active' && String(v.uid) === String(uid))
+                    .map(([h]) => parseInt(h));
+                if (!hizbs.length) return await customAlert('لا توجد أحزاب نشطة لهذا المستخدم', '', 'ℹ️');
+                const ok = await customConfirm(`إتمام ${hizbs.length} حزباً لهذا المستخدم؟`);
+                if (!ok) return;
+                await adminSaveChanges([{ uid: parseInt(uid), complete: hizbs }]);
+            }
+
+            async function adminClearUserHizbs(uid) {
+                if (!adminBoard) return;
+                const hizbs = Object.entries(adminBoard.hizb_map || {})
+                    .filter(([h, v]) => v.status === 'active' && String(v.uid) === String(uid))
+                    .map(([h]) => parseInt(h));
+                if (!hizbs.length) return;
+                const ok = await customConfirm(`إرجاع ${hizbs.length} حزباً إلى المتاح؟`);
+                if (!ok) return;
+                await adminSaveChanges([{ uid: parseInt(uid), unassign: hizbs }]);
+            }
+
+            async function adminToggleMember(uid, active) {
+                if (!adminBoard) return;
+                const user = (adminBoard.users || []).find(u => String(u.id) === String(uid));
+                const label = user ? user.name : uid;
+                const ok = await customConfirm(
+                    active ? `إشراك ${label} في التدوير اليومي؟` : `استبعاد ${label} من التدوير اليومي؟ سيُحذف دوره الحالي عند بدء الدور التالي.`
+                );
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/member/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            uid: parseInt(uid), active: active ? 1 : 0
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                    } else {
+                        await customAlert(data.error || 'فشل التحديث', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminAddMembers() {
+                const ta = document.getElementById('admin-new-members');
+                if (!ta) return;
+                const names = ta.value.split(/[\n\r,،;؛]+/)
+                    .map(s => s.trim()).filter(Boolean);
+                if (!names.length) {
+                    return await customAlert('اكتب اسماً واحداً على الأقل، كل اسم في سطر.', '', '⚠️');
+                }
+                const per = parseInt(document.getElementById('admin-bulk-per-person').value) || 2;
+                const ok = await customConfirm(
+                    `إضافة ${names.length} مشاركاً؟` +
+                    (adminBoard && adminBoard.rules && adminBoard.rules.mode === 'rotation'
+                        ? ' سيتم توزيع الأحزاب عليهم تلقائياً.'
+                        : '')
+                );
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/members/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            names: names, per_person: per
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        ta.value = '';
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        let msg = `تمت إضافة ${data.added} مشاركاً`;
+                        if (data.rotation === 'started') {
+                            msg += ` وبدأ التدوير بتوزيع ${data.assigned} حزباً`;
+                        } else if (data.rotation === 'advanced') {
+                            msg += ` وتوزيع ${data.assigned} حزباً في اليوم الحالي`;
+                        } else if (data.rotation === 'round_full') {
+                            msg += ` — كل أحزاب اليوم موزعة، سيشاركون ابتداءً من الدور القادم`;
+                        }
+                        await customAlert(msg, '', '✅');
+                    } else {
+                        await customAlert(data.error || 'فشلت الإضافة', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminSetMemberPer(uid, value) {
+                const per = Math.max(1, Math.min(60, parseInt(value) || 2));
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/member/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            uid: parseInt(uid), per_person: per
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        if (data.unassigned_hizbs && data.unassigned_hizbs.length) {
+                            await customAlert(
+                                `تم تحديث نصيب المشارك. تبقى ${data.unassigned_hizbs.length} حزباً غير موزع في اليوم.`,
+                                '', '⚠️'
+                            );
+                        }
+                    } else {
+                        await customAlert(data.error || 'فشل التحديث', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminFillGaps() {
+                if (!adminBoard) return;
+                const ok = await customConfirm('توزيع الأحزاب المتبقية على المشاركين حسب نصيب كل شخص؟');
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/assignment/fill', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            per_person: parseInt(document.getElementById('admin-bulk-per-person').value) || 2
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        const left = (data.unassigned_hizbs || []).length;
+                        await customAlert(
+                            left
+                                ? `تم توزيع ${data.assigned} حزباً، ويبقى ${left} حزباً بسبب عدم وجود مشاركين كافيين.`
+                                : `تم توزيع ${data.assigned} حزباً واكتمل توزيع اليوم.`,
+                            '', '✅'
+                        );
+                    } else {
+                        await customAlert(data.error || 'فشل التوزيع', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminAutoDistribute() {
+                if (!adminBoard) return;
+                const per = parseInt(document.getElementById('admin-bulk-per-person').value) || 2;
+                const ok = await customConfirm(`توزيع الأحزاب الستين على المشاركين (${per} لكل شخص)؟ سيتم استبدال التوزيع الحالي.`);
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/assignment/auto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            per_person: per, reset: true,
+                            start_rotation: adminBoard.rules && adminBoard.rules.mode === 'rotation',
+                            start_date: (adminBoard.rules && adminBoard.rules.rotation_start_date)
+                                || new Date().toISOString().slice(0, 10)
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        await customAlert(`تم التوزيع بنجاح (${data.assigned || 0} حزب)`, '', '✅');
+                    } else {
+                        await customAlert(data.error || 'فشل التوزيع', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminStartRotation() {
+                if (!adminBoard) return;
+                const per = parseInt(document.getElementById('admin-bulk-per-person').value) || 2;
+                const startDate = (adminBoard.rules && adminBoard.rules.rotation_start_date)
+                    || new Date().toISOString().slice(0, 10);
+                const ok = await customConfirm(`بدء التدوير اليومي من ${startDate} بمعدل ${per} أحزاب لكل مشارك؟ سيتم إعادة تعيين التوزيع الحالي.`);
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/rotation/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            start_date: startDate, per_person: per, reset: true
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        await customAlert(`بدأ التدوير. عدد المشاركين: ${data.members || 0}`, '', '🔁');
+                    } else {
+                        await customAlert(data.error || 'فشل بدء التدوير', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminCloseRound() {
+                if (!adminBoard) return;
+                const ok = await customConfirm('إغلاق اليوم الحالي وتدوير الأحزاب لليوم التالي؟');
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/round/close', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
+                            complete_pending: true
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        await customAlert(
+                            data.finished
+                                ? '🎉 اكتمل برنامج التدوير بفضل الله'
+                                : `تم إغلاق اليوم ${data.round} وبدء اليوم التالي`,
+                            '', '🌙'
+                        );
+                    } else {
+                        await customAlert(data.error || 'فشل إغلاق اليوم', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            async function adminClearAssignments() {
+                if (!adminBoard) return;
+                const ok = await customConfirm('مسح جميع الأحزاب النشطة لهذه الختمة؟');
+                if (!ok) return;
+                const changes = [];
+                (adminBoard.users || []).forEach(u => {
+                    const hizbs = Object.entries(adminBoard.hizb_map || {})
+                        .filter(([h, v]) => v.status === 'active' && String(v.uid) === String(u.id))
+                        .map(([h]) => parseInt(h));
+                    if (hizbs.length) changes.push({ uid: u.id, unassign: hizbs });
+                });
+                if (!changes.length) return;
+                await adminSaveChanges(changes);
+            }
+
+            function fillRulesForm() {
+                if (!adminBoard || !adminBoard.rules) return;
+                const r = adminBoard.rules;
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el && document.activeElement !== el) el.value = val;
+                };
+                setVal('rules-mode', r.mode === 'rotation' ? 'rotation' : 'open');
+                setVal('rules-per-person', r.hizbs_per_person || 2);
+                setVal('rules-step', r.rotation_step || 2);
+                setVal('rules-days', r.rotation_days || 30);
+                setVal('rules-start-date', r.rotation_start_date || '');
+                setVal('rules-eod-time', r.eod_time || '23:59');
+                const confirmEl = document.getElementById('rules-confirm');
+                if (confirmEl && document.activeElement !== confirmEl) {
+                    confirmEl.value = r.require_eod_confirm ? 'admin' : 'auto';
+                }
+                const autoEl = document.getElementById('rules-auto-complete');
+                if (autoEl) autoEl.checked = r.auto_complete_eod !== 0;
+            }
+
+            async function saveRotationRules() {
+                const rules = {
+                    mode: document.getElementById('rules-mode').value,
+                    hizbs_per_person: parseInt(document.getElementById('rules-per-person').value) || 2,
+                    rotation_step: parseInt(document.getElementById('rules-step').value) || 2,
+                    rotation_days: parseInt(document.getElementById('rules-days').value) || 30,
+                    rotation_start_date: document.getElementById('rules-start-date').value || null,
+                    eod_time: document.getElementById('rules-eod-time').value || '23:59',
+                    require_eod_confirm: document.getElementById('rules-confirm').value === 'admin' ? 1 : 0,
+                    auto_complete_eod: document.getElementById('rules-auto-complete').checked ? 1 : 0
+                };
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/rules', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin, rules
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        await customAlert('تم حفظ القواعد ✅', '', '✅');
+                    } else {
+                        await customAlert(data.error || 'فشل الحفظ', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
             }
 
             async function adminManageUser(uid, name, action) {

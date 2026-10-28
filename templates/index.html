@@ -114,7 +114,8 @@
         }
 
         input,
-        textarea {
+        textarea,
+        select {
             width: 100%;
             padding: 14px;
             border: 2px solid #e5e7eb;
@@ -125,7 +126,8 @@
         }
 
         input:focus,
-        textarea:focus {
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: var(--primary);
             background: white;
@@ -388,6 +390,77 @@
                         <input type="datetime-local" id="deadline" style="background: #fafafa;">
                         <small style="color: #6b7280; font-size: 0.9rem;" data-t="deadline_hint">* يمكنك تغييره لاحقاً
                             من لوحة التحكم</small>
+                    </div>
+
+                    <!-- Optional custom rotation rules -->
+                    <div class="form-group"
+                        style="background: rgba(6, 95, 70, 0.05); padding: 14px; border-radius: 12px; border: 1px dashed var(--primary);">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <input type="checkbox" id="enable-custom-rules" onchange="toggleCustomRules()"
+                                style="width:auto; transform:scale(1.2);">
+                            <label for="enable-custom-rules"
+                                style="margin:0; cursor:pointer; font-weight:600; color:var(--primary);">
+                                🔁 ختمة مخصصة (تدوير يومي تلقائي)
+                            </label>
+                        </div>
+                        <p style="font-size:0.8rem; color:#6b7280; margin-top:5px; margin-right:25px;">
+                            وزّع الأحزاب على المشاركين، وسيتم تدوير التوزيع كل يوم حتى يقرأ الجميع كل الأحزاب.
+                        </p>
+
+                        <div id="custom-rules-fields" class="hidden" style="margin-top:12px;">
+                            <div style="display:flex; gap:10px;">
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>📚 أحزاب لكل شخص</label>
+                                    <input type="number" id="rules-per-person" value="2" min="1" max="60">
+                                </div>
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>⏭️ مقدار التدوير</label>
+                                    <input type="number" id="rules-step" value="2" min="1" max="60">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>📅 تاريخ البداية</label>
+                                    <input type="date" id="rules-start-date">
+                                </div>
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>⏳ عدد الأيام</label>
+                                    <input type="number" id="rules-days" value="30" min="1" max="365">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>🌙 وقت إغلاق اليوم</label>
+                                    <input type="time" id="rules-eod-time" value="23:59">
+                                </div>
+                                <div class="form-group" style="flex:1; margin-bottom:12px;">
+                                    <label>✅ إغلاق اليوم</label>
+                                    <select id="rules-confirm">
+                                        <option value="auto">تلقائي بعد نهاية اليوم</option>
+                                        <option value="admin">بانتظار تأكيد الأدمن</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group"
+                                style="display:flex; gap:10px; align-items:center; margin-bottom:0;">
+                                <input type="checkbox" id="rules-auto-complete" checked
+                                    style="width:auto; transform:scale(1.2);">
+                                <label for="rules-auto-complete"
+                                    style="margin:0; font-size:0.9rem; color:#374151; font-weight:500;">
+                                    احتساب الأحزاب غير المكتملة كمنتهية عند إغلاق اليوم
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top:16px; margin-bottom:0;">
+                                <label>👥 أسماء المشاركين (اسم في كل سطر)</label>
+                                <textarea id="rules-participants" rows="6"
+                                    placeholder="مثال:&#10;أحمد محمد&#10;سارة علي: 3&#10;عبد الله حسن"></textarea>
+                                <small style="color:#6b7280; font-size:0.85rem;">
+                                    سيتم إنشاء المشاركين وتوزيع الأحزاب عليهم تلقائياً عند إنشاء الختمة.
+                                    لتحديد نصيب مختلف لكل شخص اكتب الاسم ثم «:» ثم عدد الأحزاب (مثال: سارة: 3).
+                                </small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -653,6 +726,13 @@
             document.getElementById('create-form').classList.remove('hidden');
         }
 
+        function toggleCustomRules() {
+            const enabled = document.getElementById('enable-custom-rules').checked;
+            const fields = document.getElementById('custom-rules-fields');
+            if (enabled) fields.classList.remove('hidden');
+            else fields.classList.add('hidden');
+        }
+
         async function createKhatma(event) {
             event.preventDefault();
 
@@ -670,6 +750,23 @@
             const intention = document.getElementById('intention').value;
             const deadline = document.getElementById('deadline').value;
 
+            // Optional custom rotation rules
+            const customRulesEnabled = document.getElementById('enable-custom-rules').checked;
+            const rules = customRulesEnabled ? {
+                mode: 'rotation',
+                hizbs_per_person: parseInt(document.getElementById('rules-per-person').value) || 2,
+                rotation_step: parseInt(document.getElementById('rules-step').value) || 2,
+                rotation_days: parseInt(document.getElementById('rules-days').value) || 30,
+                rotation_start_date: document.getElementById('rules-start-date').value || null,
+                eod_time: document.getElementById('rules-eod-time').value || '23:59',
+                require_eod_confirm: document.getElementById('rules-confirm').value === 'admin' ? 1 : 0,
+                auto_complete_eod: document.getElementById('rules-auto-complete').checked ? 1 : 0
+            } : { mode: 'open' };
+
+            const participants = customRulesEnabled
+                ? (document.getElementById('rules-participants').value || '')
+                : '';
+
             document.getElementById('create-form').classList.add('hidden');
             document.getElementById('loading').classList.remove('hidden');
 
@@ -682,7 +779,9 @@
                         admin_name: adminName,
                         admin_pin: adminPin,
                         intention: intention || '',
-                        deadline: deadline || null
+                        deadline: deadline || null,
+                        rules: rules,
+                        participants: participants
                     })
                 });
 
@@ -700,6 +799,12 @@
                         localStorage.setItem('web_user_uid', data.admin_uid);
                         localStorage.setItem('is_admin', 'true');
                         localStorage.setItem('admin_khatma_id', createdKhatmaId);
+                        // Khatma page reads session data scoped by khatma id.
+                        localStorage.setItem('web_user_name_' + createdKhatmaId, adminName);
+                        localStorage.setItem('web_user_pin_' + createdKhatmaId, adminPin);
+                        localStorage.setItem('web_user_uid_' + createdKhatmaId, data.admin_uid);
+                        localStorage.setItem('is_admin_' + createdKhatmaId, 'true');
+                        localStorage.setItem('admin_khatma_id_' + createdKhatmaId, createdKhatmaId);
                     } else {
                         // Clear any previous admin session to avoid confusion
                         localStorage.removeItem('is_admin');

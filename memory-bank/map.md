@@ -17,6 +17,14 @@
   - `register_web_user()`: User registration with Arabic normalization
   - `assign_hizb()` / `unassign_hizb()`: Hizb management
   - `get_status()`: Khatma progress tracking
+  - `get_khatma_rules()` / `set_khatma_rules()`: rotation + EOD configuration
+  - `get_khatma_members()` / `set_khatma_members()` / `update_khatma_member()`: seats, quotas, active flag
+  - `add_khatma_members_by_names()`: bulk participant creation from pasted names
+  - `initialize_rotation()` / `assign_rotation_round()`: start and advance the daily rotation
+  - `close_round()` / `process_due_rounds()` / `get_eod_status()`: end-of-day handling
+  - `get_khatma_assignment_board()`: admin board data, including warnings
+  - `rebalance_round()` / `fill_round_gaps()`: repair mid-round quota changes
+- **[parse_participants()](app.py:35)**: Parses pasted names and optional `name: N` quotas
 
 ### Telegram Bot
 
@@ -29,11 +37,21 @@
 ### Web Routes
 
 - **API Routes** (lines 980+):
-  - `/api/khatma/create`: Create new Khatma
+  - `/api/khatma/create`: Create new Khatma (accepts `rules` and bulk `participants`)
   - `/api/khatma`: Get Khatma status
   - `/api/join`: Reserve hizb via web
   - `/api/done`: Mark hizb complete
   - `/api/login`: Web user authentication
+
+- **Rotation Admin API** (lines 2776+):
+  - `/api/admin/assignment_board`: Seats, quotas and coverage warnings
+  - `/api/admin/assignment/save` / `assignment/fill`: Manual and automatic distribution
+  - `/api/admin/rotation/start`: Start the rotation
+  - `/api/admin/round/close`: Admin-confirmed end of day
+  - `/api/admin/rules`: Update rotation/EOD rules
+  - `/api/admin/member/update`: Toggle active state or per-person quota
+  - `/api/admin/members/add`: Bulk add participants (with optional quotas)
+  - `/api/cron/eod`: Process due end-of-day rounds (requires dev key)
 
 - **Developer Dashboard** (lines 1029+):
   - `/developer`: Admin dashboard UI
