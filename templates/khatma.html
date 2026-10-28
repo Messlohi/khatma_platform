@@ -923,7 +923,8 @@
             background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            /* Dialogs must always sit above the loading overlay (z-index 2000) */
+            z-index: 5000;
         }
 
         .modal-content {
@@ -3735,6 +3736,10 @@
                     const yesBtn = document.getElementById('confirm-yes-btn');
                     const noBtn = document.getElementById('confirm-no-btn');
 
+                    // Never leave the loading overlay above a dialog (it would block clicks)
+                    const loader = document.getElementById('loading');
+                    if (loader) loader.style.display = 'none';
+
                     titleEl.textContent = title || (currentLang === 'ar' ? 'تأكيد' : (currentLang === 'fr' ? 'Confirmation' : 'Confirm'));
                     messageEl.textContent = message;
 
@@ -3769,6 +3774,10 @@
                     const titleEl = document.getElementById('alert-title');
                     const messageEl = document.getElementById('alert-message');
                     const okBtn = document.getElementById('alert-ok-btn');
+
+                    // Never leave the loading overlay above a dialog (it would block clicks)
+                    const loader = document.getElementById('loading');
+                    if (loader) loader.style.display = 'none';
 
                     iconEl.textContent = icon;
                     titleEl.textContent = title || (currentLang === 'ar' ? 'تنبيه' : (currentLang === 'fr' ? 'Alerte' : 'Alert'));
