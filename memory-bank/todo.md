@@ -13,6 +13,10 @@
 - [x] Honour `auto_complete_eod` on manual round close and rename “إغلاق اليوم” to “إغلاق الدورة”
 - [x] Add 3-day-round regression tests to `rotation_test.py` and run the full backend suite
 - [x] Verify configurable interval in the browser (status card, next close date, manual close)
+- [x] Guard against duplicate completions with a unique index and `INSERT OR IGNORE`
+- [x] Add “تراجع عن الإغلاق” to reopen the last round from its snapshot
+- [x] Add a rotation schedule preview with coverage warnings, CSV export and print view
+- [x] Regression tests for duplicate guard, undo, schedule and auth (`enhancements_test.py`)
 
 All tasks completed:
 
@@ -54,3 +58,6 @@ All tasks completed:
 - `rotation_interval_days` sets round length (default 1); `rotation_days` is the number of rounds
 - `_round_end()` / `get_eod_status()` compute round boundaries and total programme length
 - Manual “إغلاق الدورة” respects `auto_complete_eod`; pending hizbs are only auto-completed when enabled
+- `undo_round()` restores a round from `khatma_rounds.details` (pending assignments + pre-close completions)
+- `get_rotation_schedule()` builds the full planned schedule; CSV/print are rendered client-side
+- `completed_hizb` is protected by a unique index; all writes use `INSERT OR IGNORE`

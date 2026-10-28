@@ -67,6 +67,14 @@ The system supports multiple independent Khatmas:
 - Admin UI: creation form and rules tab expose “مدة الدورة (أيام)”; the status card shows the interval, total duration, and that hizbs change at round close. “إغلاق الدورة” honours the stored `auto_complete_eod` (no longer forces completion).
 - Manual close no longer forces `complete_pending: true`; when `auto_complete_eod = 0`, pending hizbs stay incomplete and are not counted.
 
+### Round Safety & Schedule Preview (latest)
+
+- `completed_hizb` now has a unique expression index on `(COALESCE(khatma_id,''), user_id, hizb_number, COALESCE(round_number,1))`. `init_db()` deduplicates legacy rows first; all inserts use `INSERT OR IGNORE`.
+- `undo_round()` reopens the most recently closed round from its `khatma_rounds.details` snapshot. It restores pending assignments and only the completions that existed *before* the close, discards the abandoned next round, resets `rotation_finished`, and can be repeated to walk further back. Snapshots now store `completed_before` and `auto_completed`.
+- `POST /api/admin/round/undo` exposes it; the admin board shows “↩️ تراجع عن الإغلاق” whenever a round has been closed.
+- `get_rotation_schedule()` computes the full planned reader → hizb matrix for every round without writing to the DB. `GET /api/admin/rotation/schedule` serves it (admin PIN header).
+- The “📅 جدول التدوير” modal shows the round/member matrix, per-round coverage warnings, per-member totals, CSV export (UTF-8 BOM) and a print view.
+
 ## Outstanding Considerations
 
 - Consider adding more real-time updates via WebSocket

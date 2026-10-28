@@ -22,6 +22,8 @@
   - `add_khatma_members_by_names()`: bulk participant creation from pasted names
   - `initialize_rotation()` / `assign_rotation_round()`: start and advance the rotation
   - `close_round()` / `process_due_rounds()` / `get_eod_status()` / `_round_end()`: round-boundary handling for configurable periods
+  - `undo_round()`: reopen the last closed round from its snapshot
+  - `get_rotation_schedule()`: planned reader → hizb matrix for every round (no DB writes)
   - `get_khatma_assignment_board()`: admin board data, including warnings
   - `rebalance_round()` / `fill_round_gaps()`: repair mid-round quota changes
 - **[parse_participants()](app.py:35)**: Parses pasted names and optional `name: N` quotas
@@ -47,7 +49,9 @@
   - `/api/admin/assignment_board`: Seats, quotas and coverage warnings
   - `/api/admin/assignment/save` / `assignment/fill`: Manual and automatic distribution
   - `/api/admin/rotation/start`: Start the rotation
-  - `/api/admin/round/close`: Admin-confirmed end of day
+  - `/api/admin/round/close`: Admin-confirmed end of round
+  - `/api/admin/round/undo`: Reopen the last closed round
+  - `/api/admin/rotation/schedule`: Full planned schedule for preview/export
   - `/api/admin/rules`: Update rotation/EOD rules
   - `/api/admin/member/update`: Toggle active state or per-person quota
   - `/api/admin/members/add`: Bulk add participants (with optional quotas)

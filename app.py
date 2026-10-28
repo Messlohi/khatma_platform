@@ -227,6 +227,21 @@ class DatabaseManager:
                 UNIQUE(khatma_id, round_number)
             )''')
             
+            # One completion per (khatma, user, hizb, round). Clean up legacy
+            # duplicates first so the unique index can be created safely.
+            try:
+                c.execute(
+                    "DELETE FROM completed_hizb WHERE id NOT IN ("
+                    "SELECT MIN(id) FROM completed_hizb "
+                    "GROUP BY COALESCE(khatma_id, ''), user_id, hizb_number, COALESCE(round_number, 1))"
+                )
+                c.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_completed_unique "
+                    "ON completed_hizb(COALESCE(khatma_id, ''), user_id, hizb_number, COALESCE(round_number, 1))"
+                )
+            except Exception as e:
+                print(f"WARNING: completed_hizb unique index skipped: {e}", flush=True)
+
             # --- Migrations for existing tables ---
             try:
                 c.execute("ALTER TABLE users ADD COLUMN khatma_id TEXT")
@@ -565,7 +580,7 @@ class DatabaseManager:
                 conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ? AND user_id = ?", (khatma_id, int(user_id)))
                 # Batch Insert
                 items = [(gid, int(user_id), int(h), khatma_id, round_no) for h in hizbs]
-                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))", items)
+                conn.executemany("INSERT OR IGNORE INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))", items)
                 # Bump metadata
                 conn.execute("UPDATE khatmas SET updated_at = ? WHERE id = ?", (time.time(), khatma_id))
             else:
@@ -574,7 +589,7 @@ class DatabaseManager:
                 conn.execute("DELETE FROM hizb_assignments WHERE group_id = ? AND user_id = ?", (GLOBAL_GID, int(user_id)))
                 # Batch Insert
                 items = [(GLOBAL_GID, int(user_id), int(h)) for h in hizbs]
-                conn.executemany("INSERT INTO completed_hizb (group_id, user_id, hizb_number, round_number, timestamp) VALUES (?, ?, ?, 1, datetime('now'))", items)
+                conn.executemany("INSERT OR IGNORE INTO completed_hizb (group_id, user_id, hizb_number, round_number, timestamp) VALUES (?, ?, ?, 1, datetime('now'))", items)
             
             # Global bump
             conn.execute("UPDATE groups SET last_update = ? WHERE id = ?", (time.time(), GLOBAL_GID))
@@ -1145,7 +1160,7 @@ class DatabaseManager:
             if c.rowcount == 0:
                 return False
             
-            conn.execute("INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))", 
+            conn.execute("INSERT OR IGNORE INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))", 
                        (gid, int(user_id), int(hizb), khatma_id, round_no))
             
             # Bump metdata
@@ -1783,6 +1798,8 @@ class DatabaseManager:
                 (khatma_id, round_number)
             ).fetchall()
             completed_pairs = {(int(u), int(h)) for u, h in existing}
+            completed_before = set(completed_pairs)
+            auto_completed = []
 
             if complete_pending:
                 for uid, hizb in assignments:
@@ -1790,15 +1807,18 @@ class DatabaseManager:
                     if key in completed_pairs:
                         continue
                     conn.execute(
-                        "INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
+                        "INSERT OR IGNORE INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
                         "VALUES (?, ?, ?, ?, ?, datetime('now'))",
                         (khatma_id, int(uid), int(hizb), khatma_id, round_number)
                     )
                     completed_pairs.add(key)
+                    auto_completed.append([int(uid), int(hizb)])
 
             snapshot = {
                 "assignments": [[int(u), int(h)] for u, h in assignments],
                 "completed": sorted([list(p) for p in completed_pairs]),
+                "completed_before": sorted([list(p) for p in completed_before]),
+                "auto_completed": auto_completed,
                 "complete_pending": bool(complete_pending),
             }
 
@@ -1841,6 +1861,171 @@ class DatabaseManager:
         )
         return {"round": round_number, "finished": bool(finished),
                 "completed": len(completed_pairs), "snapshot": snapshot}
+
+    def undo_round(self, khatma_id, reopened_by=None):
+        """Re-open the most recently closed rotation round.
+
+        Restores the assignments snapshot and the completions that existed
+        *before* the round was closed, discarding anything recorded in the
+        (now abandoned) next round. Can be repeated to walk further back.
+        """
+        conn = self.get_connection()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT mode, current_round FROM khatmas WHERE id = ?", (khatma_id,)
+            ).fetchone()
+            if not row or (row[0] or "open") != "rotation":
+                conn.rollback()
+                return None
+
+            current = int(row[1] or 0)
+            if current < 1:
+                conn.rollback()
+                return {"error": "no_closed_round"}
+
+            snap_row = conn.execute(
+                "SELECT details FROM khatma_rounds WHERE khatma_id = ? AND round_number = ?",
+                (khatma_id, current)
+            ).fetchone()
+            if not snap_row:
+                conn.rollback()
+                return {"error": "snapshot_missing"}
+
+            try:
+                snapshot = json.loads(snap_row[0] or "{}")
+            except (TypeError, ValueError):
+                snapshot = {}
+
+            assignments = snapshot.get("assignments") or []
+            completed_before = snapshot.get("completed_before")
+            if completed_before is None:
+                # Older snapshots only stored the post-close completed list.
+                completed_before = snapshot.get("completed") or []
+
+            # Drop the abandoned round (N+1) and any completions from round N on.
+            conn.execute("DELETE FROM hizb_assignments WHERE khatma_id = ?", (khatma_id,))
+            conn.execute(
+                "DELETE FROM completed_hizb WHERE khatma_id = ? AND COALESCE(round_number, 1) >= ?",
+                (khatma_id, current)
+            )
+
+            # Restore the round as it was just before it was closed.
+            for uid, hizb in assignments:
+                conn.execute(
+                    "INSERT OR REPLACE INTO hizb_assignments "
+                    "(group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
+                    "VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                    (khatma_id, int(uid), int(hizb), khatma_id, current)
+                )
+            for uid, hizb in completed_before:
+                conn.execute(
+                    "INSERT OR IGNORE INTO completed_hizb "
+                    "(group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
+                    "VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                    (khatma_id, int(uid), int(hizb), khatma_id, current)
+                )
+
+            conn.execute(
+                "DELETE FROM khatma_rounds WHERE khatma_id = ? AND round_number = ?",
+                (khatma_id, current)
+            )
+            prev = conn.execute(
+                "SELECT round_date FROM khatma_rounds WHERE khatma_id = ? "
+                "ORDER BY round_number DESC LIMIT 1", (khatma_id,)
+            ).fetchone()
+            last_eod = prev[0] if prev else None
+
+            conn.execute(
+                "UPDATE khatmas SET current_round = ?, rotation_finished = 0, last_eod_date = ?, "
+                "total_khatmas = MAX(0, COALESCE(total_khatmas, 0) - 1), updated_at = ? WHERE id = ?",
+                (current - 1, last_eod, time.time(), khatma_id)
+            )
+            conn.commit()
+        except Exception:
+            try: conn.rollback()
+            except Exception: pass
+            raise
+        finally:
+            conn.close()
+
+        self.log_activity(
+            khatma_id, reopened_by, "admin" if reopened_by else "النظام",
+            "round_reopened", None,
+            f"إعادة فتح الدورة {current} ({len(completed_before)} حزب منتهٍ)"
+        )
+        return {"round": current, "active_round": current,
+                "restored_assignments": len(assignments),
+                "restored_completed": len(completed_before)}
+
+    def get_rotation_schedule(self, khatma_id):
+        """Planned reader → hizb schedule for every round, without writing to the DB."""
+        rules = self.get_khatma_rules(khatma_id)
+        if rules.get("mode") != "rotation":
+            return {"mode": "open"}
+
+        members = [m for m in self.get_khatma_members(khatma_id)
+                   if int(m.get("is_active") or 0) == 1]
+        step = max(1, int(rules.get("rotation_step") or rules.get("hizbs_per_person") or 1))
+        default_per = max(1, int(rules.get("hizbs_per_person") or 1))
+        total_rounds = max(1, int(rules.get("rotation_days") or 30))
+        interval = max(1, int(rules.get("rotation_interval_days") or 1))
+        start_date = rules.get("rotation_start_date")
+        start = self._parse_dt(start_date, "%Y-%m-%d")
+
+        seats = []
+        for m in members:
+            per = max(1, int(m.get("hizbs_per_person") or default_per))
+            seats.append({
+                "uid": m.get("user_id"),
+                "name": m.get("name") or m.get("full_name") or str(m.get("user_id")),
+                "per": per,
+            })
+
+        rounds = []
+        member_totals = {s["uid"]: 0 for s in seats}
+        for rnd in range(1, total_rounds + 1):
+            seat = 0
+            used = set()
+            entries = []
+            for s in seats:
+                hizbs = []
+                for _ in range(s["per"]):
+                    hizb = ((seat + (rnd - 1) * step) % TOTAL_HIZBS) + 1
+                    seat += 1
+                    if hizb in used:
+                        continue
+                    used.add(hizb)
+                    hizbs.append(hizb)
+                entries.append({"uid": s["uid"], "name": s["name"], "hizbs": hizbs})
+                if hizbs:
+                    member_totals[s["uid"]] = member_totals.get(s["uid"], 0) + len(hizbs)
+
+            start_d = None
+            end_d = None
+            if start:
+                start_d = (start.date() + datetime.timedelta(days=(rnd - 1) * interval)).isoformat()
+                end_d = (start.date() + datetime.timedelta(days=rnd * interval - 1)).isoformat()
+
+            rounds.append({
+                "round": rnd,
+                "start_date": start_d,
+                "end_date": end_d,
+                "coverage": len(used),
+                "entries": entries,
+            })
+
+        return {
+            "mode": "rotation",
+            "rotation_days": total_rounds,
+            "rotation_interval_days": interval,
+            "total_days": total_rounds * interval,
+            "rotation_step": step,
+            "hizbs_per_person": default_per,
+            "members": [{"uid": s["uid"], "name": s["name"], "per": s["per"],
+                         "total": member_totals.get(s["uid"], 0)} for s in seats],
+            "rounds": rounds,
+        }
 
     def _round_end(self, start_date, eod_time, round_number, interval=1):
         """Datetime at which the given round ends (last day of its interval, at eod_time)."""
@@ -2058,7 +2243,7 @@ class DatabaseManager:
                     )
                     if cur.rowcount:
                         conn.execute(
-                            "INSERT INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
+                            "INSERT OR IGNORE INTO completed_hizb (group_id, user_id, hizb_number, khatma_id, round_number, timestamp) "
                             "VALUES (?, ?, ?, ?, ?, datetime('now'))",
                             (khatma_id, uid, int(hizb), khatma_id, active_round)
                         )
@@ -2947,6 +3132,50 @@ def admin_close_round():
             return jsonify({"error": "هذه الختمة ليست في وضع التدوير اليومي"}), 400
         return jsonify({"success": True, **result,
                         "eod": db.get_eod_status(khatma_id)})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/round/undo", methods=["POST"])
+def admin_undo_round():
+    d = request.get_json() or {}
+    if not _admin_auth_from_payload(d):
+        return jsonify({"error": "Unauthorized"}), 403
+    khatma_id = d.get("khatma_id")
+    if not khatma_id:
+        return jsonify({"error": "khatma_id required"}), 400
+
+    reopened_by = d.get("admin_uid")
+    try:
+        reopened_by = int(reopened_by) if reopened_by is not None else None
+    except (TypeError, ValueError):
+        reopened_by = None
+
+    try:
+        result = db.undo_round(khatma_id, reopened_by=reopened_by)
+        if not result:
+            return jsonify({"error": "هذه الختمة ليست في وضع التدوير"}), 400
+        if result.get("error") == "no_closed_round":
+            return jsonify({"error": "لا توجد دورة مغلقة للتراجع عنها"}), 400
+        if result.get("error") == "snapshot_missing":
+            return jsonify({"error": "لا توجد نسخة محفوظة لهذه الدورة"}), 400
+        return jsonify({"success": True, **result,
+                        "eod": db.get_eod_status(khatma_id)})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/rotation/schedule")
+def admin_rotation_schedule():
+    admin_uid = request.args.get("uid")
+    khatma_id = request.args.get("khatma_id")
+    pin = request.headers.get("X-Admin-Pin")
+    if not db.verify_admin_credentials(admin_uid, khatma_id, pin):
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        return jsonify({"success": True, **db.get_rotation_schedule(khatma_id)})
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500

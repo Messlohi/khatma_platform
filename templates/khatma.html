@@ -1588,6 +1588,38 @@
         .rotation-status-card b {
             color: #fbbf24;
         }
+        .schedule-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.78rem;
+            min-width: max-content;
+        }
+        .schedule-table th,
+        .schedule-table td {
+            border: 1px solid #e5e7eb;
+            padding: 6px 8px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .schedule-table thead th {
+            position: sticky;
+            top: 0;
+            background: #065f46;
+            color: #fff;
+            z-index: 1;
+            font-size: 0.75rem;
+        }
+        .schedule-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .schedule-table td.round-col {
+            background: #ecfdf5;
+            font-weight: bold;
+            color: #065f46;
+        }
+        .schedule-table td.empty {
+            color: #d1d5db;
+        }
         .rules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1883,6 +1915,10 @@
                     <button class="btn btn-secondary admin-tool-btn" onclick="adminStartRotation()">🔁 بدء
                         التدوير</button>
                     <button class="btn btn-outline admin-tool-btn" onclick="adminCloseRound()">🌙 إغلاق الدورة</button>
+                    <button class="btn btn-outline admin-tool-btn" id="admin-undo-round-btn" onclick="adminUndoRound()"
+                        style="display: none;">↩️ تراجع عن الإغلاق</button>
+                    <button class="btn btn-outline admin-tool-btn" id="admin-schedule-btn" onclick="adminShowSchedule()"
+                        style="display: none;">📅 جدول التدوير</button>
                     <button class="btn btn-outline admin-tool-btn" onclick="adminClearAssignments()">🗑️ مسح
                         التوزيع</button>
                 </div>
@@ -2166,6 +2202,25 @@
                     data-t="confirm_yes">تأكيد</button>
                 <button class="btn btn-outline" id="confirm-no-btn" style="flex: 1;"
                     data-t="confirm_cancel">إلغاء</button>
+            </div>
+        </div>
+    </div>
+    <!-- Rotation schedule preview / export -->
+    <div id="schedule-modal" class="modal">
+        <div class="modal-content"
+            style="max-width: 1100px; width: 96%; text-align: right; max-height: 88vh; overflow: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="margin: 0;">📅 جدول التدوير</h3>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-outline admin-tool-btn" onclick="downloadScheduleCsv()">⬇️ CSV</button>
+                    <button class="btn btn-outline admin-tool-btn" onclick="printSchedule()">🖨️ طباعة</button>
+                    <button class="btn btn-outline admin-tool-btn" onclick="closeSchedule()">إغلاق</button>
+                </div>
+            </div>
+            <p id="schedule-summary" style="color: #6b7280; font-size: 0.85rem; margin: 10px 0;"></p>
+            <div id="schedule-warning" class="admin-warning" style="display: none;"></div>
+            <div id="schedule-table-wrap"
+                style="overflow: auto; max-height: 62vh; border: 1px solid #e5e7eb; border-radius: 12px; margin-top: 10px;">
             </div>
         </div>
     </div>
@@ -4057,6 +4112,16 @@
                     card.style.display = 'none';
                 }
 
+                const undoBtn = document.getElementById('admin-undo-round-btn');
+                if (undoBtn) {
+                    undoBtn.style.display = (rules.mode === 'rotation' && (eod.current_round || 0) > 0)
+                        ? 'inline-block' : 'none';
+                }
+                const scheduleBtn = document.getElementById('admin-schedule-btn');
+                if (scheduleBtn) {
+                    scheduleBtn.style.display = rules.mode === 'rotation' ? 'inline-block' : 'none';
+                }
+
                 const perInput = document.getElementById('admin-bulk-per-person');
                 if (perInput && document.activeElement !== perInput) {
                     perInput.value = rules.hizbs_per_person || 2;
@@ -4505,6 +4570,176 @@
                 } finally {
                     showLoading(false);
                 }
+            }
+
+            async function adminUndoRound() {
+                if (!adminBoard) return;
+                const eod = adminBoard.eod || {};
+                const round = parseInt(eod.current_round || 0);
+                if (round < 1) {
+                    await customAlert('لا توجد دورة مغلقة للتراجع عنها', '', 'ℹ️');
+                    return;
+                }
+                const ok = await customConfirm(
+                    `إعادة فتح الدورة ${round}؟ سيُحذف توزيع الدورة الحالية وتُستعاد أحزاب الدورة ${round}.`,
+                    '↩️ تراجع عن الإغلاق'
+                );
+                if (!ok) return;
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/admin/round/undo', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        await loadAssignmentBoard();
+                        await refreshData();
+                        await customAlert(
+                            `تمت إعادة فتح الدورة ${data.round} واسترجاع توزيعها (${data.restored_assignments} حزباً).`,
+                            '', '↩️'
+                        );
+                    } else {
+                        await customAlert(data.error || 'تعذر التراجع عن الإغلاق', '', '❌');
+                    }
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            let scheduleData = null;
+
+            function closeSchedule() {
+                const modal = document.getElementById('schedule-modal');
+                if (modal) modal.style.display = 'none';
+            }
+
+            async function adminShowSchedule() {
+                if (!adminBoard) return;
+                showLoading(true);
+                try {
+                    const res = await fetch(
+                        `/api/admin/rotation/schedule?khatma_id=${encodeURIComponent(khatmaId)}&uid=${encodeURIComponent(webUserUid)}`,
+                        { headers: { 'X-Admin-Pin': webUserPin || '' } }
+                    );
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        await customAlert(data.error || 'تعذر تحميل جدول التدوير', '', '❌');
+                        return;
+                    }
+                    if (data.mode !== 'rotation') {
+                        await customAlert('جدول التدوير متاح لختمات التدوير فقط', '', 'ℹ️');
+                        return;
+                    }
+                    scheduleData = data;
+                    renderSchedule(data);
+                    document.getElementById('schedule-modal').style.display = 'flex';
+                } catch (e) {
+                    await customAlert('خطأ في الاتصال', '', '❌');
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            function renderSchedule(data) {
+                const interval = data.rotation_interval_days || 1;
+                const summary = document.getElementById('schedule-summary');
+                summary.innerHTML = `عدد الدورات: <b>${data.rotation_days}</b> · مدة الدورة: <b>${interval}</b> ${interval > 1 ? 'أيام' : 'يوم'} · المدة الكلية: <b>${data.total_days}</b> يوماً · مقدار التدوير: <b>${data.rotation_step}</b>`;
+
+                const members = data.members || [];
+                const rounds = data.rounds || [];
+                const lowCoverage = rounds.filter(r => (r.coverage || 0) < 60);
+                const short = members.filter(m => (m.total || 0) < 60);
+                const warn = document.getElementById('schedule-warning');
+                let msgs = [];
+                if (!members.length) msgs.push('لا يوجد مشاركون نشطون بعد.');
+                if (lowCoverage.length) {
+                    const minCoverage = Math.min(...lowCoverage.map(r => r.coverage || 0));
+                    msgs.push(`⚠️ ${lowCoverage.length} دورة لا تغطي كل الأحزاب الستين (أقل تغطية: ${minCoverage}/60). أضف مشاركين أو ارفع النصيب.`);
+                }
+                if (short.length) {
+                    const minTotal = Math.min(...short.map(m => m.total || 0));
+                    msgs.push(`⚠️ ${short.length} مشاركاً لن يقرأ 60 حزباً خلال البرنامج (أقل إجمالي: ${minTotal}).`);
+                }
+                if (msgs.length) {
+                    warn.innerHTML = msgs.join('<br>');
+                    warn.style.display = 'block';
+                } else {
+                    warn.style.display = 'none';
+                }
+
+                let html = '<table class="schedule-table"><thead><tr><th>الدورة</th><th>التاريخ</th>';
+                members.forEach(m => { html += `<th>${escapeHtml(m.name)}</th>`; });
+                html += '</tr></thead><tbody>';
+                rounds.forEach(r => {
+                    const dateLabel = !r.start_date
+                        ? ''
+                        : (r.start_date === r.end_date ? r.start_date : `${r.start_date} ← ${r.end_date}`);
+                    html += `<tr><td class="round-col">${r.round}</td><td>${dateLabel}</td>`;
+                    (r.entries || []).forEach(e => {
+                        html += `<td class="${e.hizbs && e.hizbs.length ? '' : 'empty'}">${e.hizbs && e.hizbs.length ? e.hizbs.join(', ') : '—'}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                document.getElementById('schedule-table-wrap').innerHTML = html;
+            }
+
+            function downloadScheduleCsv() {
+                if (!scheduleData) return;
+                const rows = [['الدورة', 'من', 'إلى', 'المشارك', 'الأحزاب', 'العدد']];
+                (scheduleData.rounds || []).forEach(r => {
+                    (r.entries || []).forEach(e => {
+                        rows.push([r.round, r.start_date || '', r.end_date || '', e.name, (e.hizbs || []).join(' '), (e.hizbs || []).length]);
+                    });
+                });
+                rows.push([]);
+                rows.push(['الإجمالي', '', '', '', '', '']);
+                (scheduleData.members || []).forEach(m => rows.push(['', '', '', m.name, '', m.total]));
+                const csv = '\ufeff' + rows.map(row =>
+                    row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+                ).join('\r\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jadwal-tadweer-${khatmaId}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+            }
+
+            function printSchedule() {
+                if (!scheduleData) return;
+                const table = document.getElementById('schedule-table-wrap').innerHTML;
+                const summary = document.getElementById('schedule-summary').innerText;
+                const win = window.open('', '_blank');
+                if (!win) {
+                    customAlert('يرجى السماح بالنوافذ المنبثقة للطباعة', '', '🖨️');
+                    return;
+                }
+                win.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
+                    <title>جدول التدوير</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 18px; color: #111; }
+                        h1 { font-size: 18px; margin: 0 0 6px; }
+                        p { font-size: 12px; color: #444; margin: 0 0 12px; }
+                        table { border-collapse: collapse; width: 100%; font-size: 10px; }
+                        th, td { border: 1px solid #999; padding: 4px; text-align: center; }
+                        thead th { background: #065f46; color: #fff; }
+                        tr:nth-child(even) td { background: #f3f4f6; }
+                    </style></head><body>
+                    <h1>جدول التدوير</h1><p>${escapeHtml(summary)}</p>${table}
+                    </body></html>`);
+                win.document.close();
+                win.focus();
+                win.print();
             }
 
             async function adminClearAssignments() {
