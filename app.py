@@ -61,6 +61,11 @@ def parse_participants(raw):
             per = item.get("hizbs_per_person", item.get("per_person", item.get("hizbs")))
         else:
             text = str(item)
+            # Tolerate pasted numbered/bulleted lists ("1. أحمد", "2) أحمد", "- أحمد")
+            text = re.sub(
+                r"^\s*(?:[-•*·]+\s*|\(?[0-9\u0660-\u0669]{1,2}[\.\)\-:]?\s*)",
+                "", text,
+            ).strip()
             match = re.match(r"^\s*(.+?)\s*(?:[:=]|\s-\s)\s*(\d{1,2})\s*$", text)
             if match:
                 name, per = match.group(1), int(match.group(2))
