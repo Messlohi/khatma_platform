@@ -17,11 +17,11 @@
   - `register_web_user()`: User registration with Arabic normalization
   - `assign_hizb()` / `unassign_hizb()`: Hizb management
   - `get_status()`: Khatma progress tracking
-  - `get_khatma_rules()` / `set_khatma_rules()`: rotation + EOD configuration
+  - `get_khatma_rules()` / `set_khatma_rules()`: rotation + EOD configuration (`rotation_interval_days` = round length)
   - `get_khatma_members()` / `set_khatma_members()` / `update_khatma_member()`: seats, quotas, active flag
   - `add_khatma_members_by_names()`: bulk participant creation from pasted names
-  - `initialize_rotation()` / `assign_rotation_round()`: start and advance the daily rotation
-  - `close_round()` / `process_due_rounds()` / `get_eod_status()`: end-of-day handling
+  - `initialize_rotation()` / `assign_rotation_round()`: start and advance the rotation
+  - `close_round()` / `process_due_rounds()` / `get_eod_status()` / `_round_end()`: round-boundary handling for configurable periods
   - `get_khatma_assignment_board()`: admin board data, including warnings
   - `rebalance_round()` / `fill_round_gaps()`: repair mid-round quota changes
 - **[parse_participants()](app.py:35)**: Parses pasted names and optional `name: N` quotas

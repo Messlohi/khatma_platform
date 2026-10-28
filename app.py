@@ -151,6 +151,7 @@ class DatabaseManager:
                 ("rotation_step", "INTEGER DEFAULT 2"),
                 ("rotation_start_date", "TEXT"),
                 ("rotation_days", "INTEGER DEFAULT 30"),
+                ("rotation_interval_days", "INTEGER DEFAULT 1"),
                 ("eod_time", "TEXT DEFAULT '23:59'"),
                 ("auto_complete_eod", "INTEGER DEFAULT 1"),
                 ("require_eod_confirm", "INTEGER DEFAULT 0"),
@@ -1267,8 +1268,9 @@ class DatabaseManager:
                 per_person = max(1, min(60, int(rules.get("hizbs_per_person") or 2)))
                 rotation_step = max(1, min(60, int(rules.get("rotation_step") or per_person)))
                 rotation_days = max(1, min(365, int(rules.get("rotation_days") or 30)))
+                rotation_interval = max(1, min(365, int(rules.get("rotation_interval_days") or 1)))
             except (ValueError, TypeError):
-                per_person, rotation_step, rotation_days = 2, 2, 30
+                per_person, rotation_step, rotation_days, rotation_interval = 2, 2, 30, 1
             start_date = rules.get("rotation_start_date")
             if start_date:
                 parsed = self._parse_dt(start_date)
@@ -1282,10 +1284,11 @@ class DatabaseManager:
             conn.execute(
                 """INSERT INTO khatmas (id, name, admin_uid, intention, deadline, total_khatmas,
                                         mode, hizbs_per_person, rotation_step, rotation_start_date,
-                                        rotation_days, eod_time, auto_complete_eod, require_eod_confirm)
-                   VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                        rotation_days, rotation_interval_days, eod_time,
+                                        auto_complete_eod, require_eod_confirm)
+                   VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (kid, name, admin_id, intention, deadline, mode, per_person, rotation_step,
-                 start_date, rotation_days, eod_time, auto_complete, require_confirm))
+                 start_date, rotation_days, rotation_interval, eod_time, auto_complete, require_confirm))
             
             conn.commit()
             self.bump()
@@ -1298,7 +1301,8 @@ class DatabaseManager:
         try:
             row = conn.execute(
                 "SELECT id, name, admin_uid, intention, deadline, total_khatmas, selection_type, "
-                "mode, hizbs_per_person, rotation_step, rotation_start_date, rotation_days, eod_time, "
+                "mode, hizbs_per_person, rotation_step, rotation_start_date, rotation_days, "
+                "rotation_interval_days, eod_time, "
                 "auto_complete_eod, require_eod_confirm, current_round, rotation_finished "
                 "FROM khatmas WHERE id = ?", (khatma_id,)
             ).fetchone()
@@ -1308,9 +1312,10 @@ class DatabaseManager:
                     "deadline": row[4], "total_khatmas": row[5], "selection_type": row[6],
                     "mode": row[7] or "open", "hizbs_per_person": row[8],
                     "rotation_step": row[9], "rotation_start_date": row[10],
-                    "rotation_days": row[11], "eod_time": row[12],
-                    "auto_complete_eod": row[13], "require_eod_confirm": row[14],
-                    "current_round": row[15], "rotation_finished": row[16],
+                    "rotation_days": row[11], "rotation_interval_days": row[12] or 1,
+                    "eod_time": row[13],
+                    "auto_complete_eod": row[14], "require_eod_confirm": row[15],
+                    "current_round": row[16], "rotation_finished": row[17],
                 }
             return None
         finally:
@@ -1407,6 +1412,7 @@ class DatabaseManager:
         "rotation_step": 2,
         "rotation_start_date": None,
         "rotation_days": 30,
+        "rotation_interval_days": 1,
         "eod_time": "23:59",
         "auto_complete_eod": 1,
         "require_eod_confirm": 0,
@@ -1436,7 +1442,8 @@ class DatabaseManager:
         try:
             row = conn.execute(
                 "SELECT mode, hizbs_per_person, rotation_step, rotation_start_date, rotation_days, "
-                "eod_time, auto_complete_eod, require_eod_confirm, current_round, last_eod_date, rotation_finished "
+                "rotation_interval_days, eod_time, auto_complete_eod, require_eod_confirm, "
+                "current_round, last_eod_date, rotation_finished "
                 "FROM khatmas WHERE id = ?", (khatma_id,)
             ).fetchone()
         finally:
@@ -1446,13 +1453,14 @@ class DatabaseManager:
             return dict(self.ROTATION_DEFAULTS)
 
         keys = ["mode", "hizbs_per_person", "rotation_step", "rotation_start_date",
-                "rotation_days", "eod_time", "auto_complete_eod", "require_eod_confirm",
-                "current_round", "last_eod_date", "rotation_finished"]
+                "rotation_days", "rotation_interval_days", "eod_time", "auto_complete_eod",
+                "require_eod_confirm", "current_round", "last_eod_date", "rotation_finished"]
         rules = dict(zip(keys, row))
         rules["mode"] = rules.get("mode") or "open"
         rules["hizbs_per_person"] = int(rules.get("hizbs_per_person") or 2)
         rules["rotation_step"] = int(rules.get("rotation_step") or rules["hizbs_per_person"])
         rules["rotation_days"] = int(rules.get("rotation_days") or 30)
+        rules["rotation_interval_days"] = max(1, int(rules.get("rotation_interval_days") or 1))
         rules["eod_time"] = rules.get("eod_time") or "23:59"
         rules["auto_complete_eod"] = int(rules.get("auto_complete_eod") if rules.get("auto_complete_eod") is not None else 1)
         rules["require_eod_confirm"] = int(rules.get("require_eod_confirm") or 0)
@@ -1464,14 +1472,14 @@ class DatabaseManager:
         """Persist a subset of custom khatma rules. Values are validated/clamped."""
         allowed = {
             "mode", "hizbs_per_person", "rotation_step", "rotation_start_date",
-            "rotation_days", "eod_time", "auto_complete_eod", "require_eod_confirm",
-            "current_round", "last_eod_date", "rotation_finished",
+            "rotation_days", "rotation_interval_days", "eod_time", "auto_complete_eod",
+            "require_eod_confirm", "current_round", "last_eod_date", "rotation_finished",
         }
         clean = {}
         for key, value in kwargs.items():
             if key not in allowed or value is None:
                 continue
-            if key in ("hizbs_per_person", "rotation_step", "rotation_days"):
+            if key in ("hizbs_per_person", "rotation_step", "rotation_days", "rotation_interval_days"):
                 try:
                     value = max(1, min(365, int(value)))
                 except (ValueError, TypeError):
@@ -1705,7 +1713,7 @@ class DatabaseManager:
             conn.close()
 
     def initialize_rotation(self, khatma_id, start_date=None, reset=True, user_ids=None, per_person=None):
-        """Start (or restart) the daily rotation for a khatma."""
+        """Start (or restart) the rotation for a khatma."""
         if start_date:
             parsed = self._parse_dt(start_date)
             start_date = (parsed.date() if parsed else datetime.date.today()).isoformat()
@@ -1748,7 +1756,8 @@ class DatabaseManager:
         try:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
-                "SELECT mode, current_round, rotation_days, auto_complete_eod, rotation_start_date "
+                "SELECT mode, current_round, rotation_days, auto_complete_eod, rotation_start_date, "
+                "rotation_interval_days "
                 "FROM khatmas WHERE id = ?", (khatma_id,)
             ).fetchone()
             if not row or (row[0] or "open") != "rotation":
@@ -1757,6 +1766,7 @@ class DatabaseManager:
 
             current_round = int(row[1] or 0)
             rotation_days = int(row[2] or 30)
+            interval = max(1, int(row[5] or 1))
             round_number = current_round + 1
             if round_number > rotation_days:
                 conn.rollback()
@@ -1796,7 +1806,7 @@ class DatabaseManager:
 
             start_dt = self._parse_dt(row[4], "%Y-%m-%d")
             if start_dt:
-                round_date = (start_dt.date() + datetime.timedelta(days=round_number - 1)).isoformat()
+                round_date = (start_dt.date() + datetime.timedelta(days=(round_number - 1) * interval)).isoformat()
             else:
                 round_date = datetime.date.today().isoformat()
 
@@ -1827,13 +1837,22 @@ class DatabaseManager:
         self.log_activity(
             khatma_id, closed_by, "admin" if closed_by else "النظام",
             "round_closed", None,
-            f"إغلاق اليوم {round_number}" + (" تلقائياً" if auto else "") + f" ({len(completed_pairs)} حزب)"
+            f"إغلاق الدورة {round_number}" + (" تلقائياً" if auto else "") + f" ({len(completed_pairs)} حزب)"
         )
         return {"round": round_number, "finished": bool(finished),
                 "completed": len(completed_pairs), "snapshot": snapshot}
 
+    def _round_end(self, start_date, eod_time, round_number, interval=1):
+        """Datetime at which the given round ends (last day of its interval, at eod_time)."""
+        start = self._parse_dt(start_date, "%Y-%m-%d") or datetime.datetime.now()
+        eod = self._parse_dt(eod_time, "%H:%M")
+        hour, minute = (eod.hour, eod.minute) if eod else (23, 59)
+        first = datetime.datetime.combine(start.date(), datetime.time(hour, minute))
+        interval = max(1, int(interval or 1))
+        return first + datetime.timedelta(days=(int(round_number) - 1) * interval + (interval - 1))
+
     def process_due_rounds(self, khatma_id=None):
-        """Lazily close any rotation rounds whose EOD time has passed.
+        """Lazily close any rotation rounds whose period has ended.
 
         There is no always-on worker on the free hosting tier, so this is
         called from the read API and can also be triggered by the admin or a
@@ -1862,13 +1881,16 @@ class DatabaseManager:
             start = self._parse_dt(rules.get("rotation_start_date"), "%Y-%m-%d")
             if not start:
                 continue
+            interval = max(1, int(rules.get("rotation_interval_days") or 1))
             eod = self._parse_dt(rules.get("eod_time"), "%H:%M")
             hour, minute = (eod.hour, eod.minute) if eod else (23, 59)
             first_eod = datetime.datetime.combine(start.date(), datetime.time(hour, minute))
             if now < first_eod:
                 continue
 
-            due = int((now - first_eod).total_seconds() // 86400) + 1
+            # A round lasts `interval` days; round N ends after N*interval-1 days.
+            elapsed = (now - first_eod).total_seconds()
+            due = max(0, int((elapsed + 86400) // (86400 * interval)))
             due = min(due, int(rules.get("rotation_days") or 30))
             current = int(rules.get("current_round") or 0)
             closed = 0
@@ -1890,22 +1912,29 @@ class DatabaseManager:
             return {"mode": "open"}
 
         now = datetime.datetime.now()
-        start = self._parse_dt(rules.get("rotation_start_date"), "%Y-%m-%d") or now
-        eod = self._parse_dt(rules.get("eod_time"), "%H:%M")
-        hour, minute = (eod.hour, eod.minute) if eod else (23, 59)
-        first_eod = datetime.datetime.combine(start.date(), datetime.time(hour, minute))
+        start_date = rules.get("rotation_start_date") or now.date().isoformat()
+        interval = max(1, int(rules.get("rotation_interval_days") or 1))
         current = int(rules.get("current_round") or 0)
         rotation_days = int(rules.get("rotation_days") or 30)
-        next_eod = first_eod + datetime.timedelta(days=current)
+        next_eod = self._round_end(start_date, rules.get("eod_time"), current + 1, interval)
         if next_eod < now and int(rules.get("require_eod_confirm") or 0) == 0:
-            due = min(int((now - first_eod).total_seconds() // 86400) + 1, rotation_days)
-            next_eod = first_eod + datetime.timedelta(days=due)
+            start = self._parse_dt(start_date, "%Y-%m-%d") or now
+            eod = self._parse_dt(rules.get("eod_time"), "%H:%M")
+            hour, minute = (eod.hour, eod.minute) if eod else (23, 59)
+            first_eod = datetime.datetime.combine(start.date(), datetime.time(hour, minute))
+            elapsed = (now - first_eod).total_seconds()
+            due = max(0, int((elapsed + 86400) // (86400 * interval)))
+            due = min(due, rotation_days)
+            next_eod = self._round_end(start_date, rules.get("eod_time"),
+                                       min(due + 1, rotation_days), interval)
 
         return {
             "mode": "rotation",
             "current_round": current,
             "active_round": current + 1,
             "rotation_days": rotation_days,
+            "rotation_interval_days": interval,
+            "total_days": rotation_days * interval,
             "finished": bool(rules.get("rotation_finished")),
             "next_eod": None if rules.get("rotation_finished") else next_eod.strftime("%Y-%m-%d %H:%M"),
             "overdue": bool(not rules.get("rotation_finished") and next_eod < now),
@@ -2935,7 +2964,8 @@ def admin_update_rules():
     rules = d.get("rules") if isinstance(d.get("rules"), dict) else {
         key: d.get(key) for key in (
             "mode", "hizbs_per_person", "rotation_step", "rotation_start_date",
-            "rotation_days", "eod_time", "auto_complete_eod", "require_eod_confirm"
+            "rotation_days", "rotation_interval_days", "eod_time",
+            "auto_complete_eod", "require_eod_confirm"
         ) if key in d
     }
     try:

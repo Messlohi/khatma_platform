@@ -9,6 +9,10 @@
 - [x] Warn admins about unassigned hizbs, quota shortfall and quotas below the rotation step
 - [x] Add configurable EOD closing (auto vs. admin confirmation) and `/api/cron/eod`
 - [x] Verify rotation end-to-end in the browser (bulk add, quota edit, warnings, creation form)
+- [x] Make rotation period configurable (`rotation_interval_days`, default 1) instead of one round per day
+- [x] Honour `auto_complete_eod` on manual round close and rename “إغلاق اليوم” to “إغلاق الدورة”
+- [x] Add 3-day-round regression tests to `rotation_test.py` and run the full backend suite
+- [x] Verify configurable interval in the browser (status card, next close date, manual close)
 
 All tasks completed:
 
@@ -47,3 +51,6 @@ All tasks completed:
 - Bulk names + per-person quotas via `parse_participants()` and `POST /api/admin/members/add`
 - `rebalance_round()` / `fill_round_gaps()` keep the board consistent after mid-round edits
 - Admin board surfaces `unassigned_hizbs`, `shortfall` and `quota_warnings`
+- `rotation_interval_days` sets round length (default 1); `rotation_days` is the number of rounds
+- `_round_end()` / `get_eod_status()` compute round boundaries and total programme length
+- Manual “إغلاق الدورة” respects `auto_complete_eod`; pending hizbs are only auto-completed when enabled

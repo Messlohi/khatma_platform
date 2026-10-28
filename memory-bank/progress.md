@@ -53,6 +53,7 @@
 - [x] Activity Log API endpoints for admin review
 - [x] Fixed activity feed timestamp mapping key (`time` to `timestamp` in frontend and backend) and resolved `NULL` timestamp issues in `mark_all_done` batch completions by explicitly setting `datetime('now')`. Updated all historical NULL values.
 - [x] Auto-Assignment Modal: Automatically prompt connected web users without active assignments to reserve N Hizbs sequentially or randomly, with support for all translation locales.
+- [x] Rotation Khatmas: configurable hizbs per person, bulk participant names with per-person quotas, coverage warnings, auto/admin round closing, and configurable round length (`rotation_interval_days`, default 1 day).
 
 ## Known Issues (Historical)
 

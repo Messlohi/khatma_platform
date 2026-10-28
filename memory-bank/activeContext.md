@@ -59,6 +59,14 @@ The system supports multiple independent Khatmas:
 - Admin is warned in the board when hizbs are still unassigned (`unassigned_hizbs`), when members cannot reach their quota (`shortfall`), and when a member's quota is smaller than `rotation_step` (`quota_warnings`). `POST /api/admin/assignment/fill` distributes leftover hizbs up to each quota.
 - Backend coverage: `smoke.py`, `open_smoke.py`, `api_smoke.py`, `bulk_smoke.py`, `rotation_test.py` (30 rounds × 60 unique hizbs, auto EOD catch-up, confirm-mode blocking), all passing.
 
+### Configurable Rotation Period (latest)
+
+- `khatmas.rotation_interval_days` (default 1) sets how many days each round lasts. `rotation_days` is the number of rounds; total programme length is `rotation_days * rotation_interval_days`.
+- Round `n` covers days `(n-1)*interval + 1 … n*interval` and closes at `rotation_start_date + (n*interval - 1)` days at `eod_time`. Hizbs shift only when a round closes; day 1 layout follows seat order.
+- `_round_end()` is the single source of truth for round end times. `process_due_rounds()` computes `due = (elapsed + 1 day) // (interval days)` and closes catch-up rounds. `get_eod_status()` returns `rotation_interval_days`, `total_days`, `next_eod`, and `overdue`.
+- Admin UI: creation form and rules tab expose “مدة الدورة (أيام)”; the status card shows the interval, total duration, and that hizbs change at round close. “إغلاق الدورة” honours the stored `auto_complete_eod` (no longer forces completion).
+- Manual close no longer forces `complete_pending: true`; when `auto_complete_eod = 0`, pending hizbs stay incomplete and are not counted.
+
 ## Outstanding Considerations
 
 - Consider adding more real-time updates via WebSocket

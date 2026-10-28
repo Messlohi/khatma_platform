@@ -424,19 +424,26 @@
                                     <input type="date" id="rules-start-date">
                                 </div>
                                 <div class="form-group" style="flex:1; margin-bottom:12px;">
-                                    <label>⏳ عدد الأيام</label>
+                                    <label>⏳ عدد الدورات</label>
                                     <input type="number" id="rules-days" value="30" min="1" max="365">
                                 </div>
                             </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label>⏱️ مدة الدورة (أيام)</label>
+                                <input type="number" id="rules-interval-days" value="1" min="1" max="365">
+                                <small style="color:#6b7280; font-size:0.8rem;">
+                                    كل كم يوم تتغيّر أحزاب القراء؟ 1 = تدوير يومي، 3 = كل ثلاثة أيام.
+                                </small>
+                            </div>
                             <div style="display:flex; gap:10px;">
                                 <div class="form-group" style="flex:1; margin-bottom:12px;">
-                                    <label>🌙 وقت إغلاق اليوم</label>
+                                    <label>🌙 وقت إغلاق الدورة</label>
                                     <input type="time" id="rules-eod-time" value="23:59">
                                 </div>
                                 <div class="form-group" style="flex:1; margin-bottom:12px;">
-                                    <label>✅ إغلاق اليوم</label>
+                                    <label>✅ إغلاق الدورة</label>
                                     <select id="rules-confirm">
-                                        <option value="auto">تلقائي بعد نهاية اليوم</option>
+                                        <option value="auto">تلقائي بعد نهاية الدورة</option>
                                         <option value="admin">بانتظار تأكيد الأدمن</option>
                                     </select>
                                 </div>
@@ -757,6 +764,7 @@
                 hizbs_per_person: parseInt(document.getElementById('rules-per-person').value) || 2,
                 rotation_step: parseInt(document.getElementById('rules-step').value) || 2,
                 rotation_days: parseInt(document.getElementById('rules-days').value) || 30,
+                rotation_interval_days: parseInt(document.getElementById('rules-interval-days').value) || 1,
                 rotation_start_date: document.getElementById('rules-start-date').value || null,
                 eod_time: document.getElementById('rules-eod-time').value || '23:59',
                 require_eod_confirm: document.getElementById('rules-confirm').value === 'admin' ? 1 : 0,

@@ -1882,7 +1882,7 @@
                         تلقائي</button>
                     <button class="btn btn-secondary admin-tool-btn" onclick="adminStartRotation()">🔁 بدء
                         التدوير</button>
-                    <button class="btn btn-outline admin-tool-btn" onclick="adminCloseRound()">🌙 إغلاق اليوم</button>
+                    <button class="btn btn-outline admin-tool-btn" onclick="adminCloseRound()">🌙 إغلاق الدورة</button>
                     <button class="btn btn-outline admin-tool-btn" onclick="adminClearAssignments()">🗑️ مسح
                         التوزيع</button>
                 </div>
@@ -1908,37 +1908,42 @@
                         <input type="number" id="rules-per-person" min="1" max="60">
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label>⏭️ مقدار التدوير اليومي</label>
+                        <label>⏭️ مقدار التدوير</label>
                         <input type="number" id="rules-step" min="1" max="60">
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label>⏳ عدد الأيام</label>
+                        <label>⏳ عدد الدورات</label>
                         <input type="number" id="rules-days" min="1" max="365">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>⏱️ مدة الدورة (أيام)</label>
+                        <input type="number" id="rules-interval-days" min="1" max="365" value="1">
+                        <small style="color:#6b7280; font-size:0.75rem;">1 = تدوير يومي، 3 = كل ثلاثة أيام.</small>
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
                         <label>📅 تاريخ البداية</label>
                         <input type="date" id="rules-start-date">
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label>🌙 وقت إغلاق اليوم</label>
+                        <label>🌙 وقت إغلاق الدورة</label>
                         <input type="time" id="rules-eod-time">
                     </div>
                     <div class="form-group" style="margin-bottom: 12px;">
-                        <label>✅ إغلاق اليوم</label>
+                        <label>✅ إغلاق الدورة</label>
                         <select id="rules-confirm">
-                            <option value="auto">تلقائي بعد نهاية اليوم</option>
+                            <option value="auto">تلقائي بعد نهاية الدورة</option>
                             <option value="admin">بانتظار تأكيد الأدمن</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" id="rules-auto-complete" style="width: auto;">
                         <label for="rules-auto-complete" style="margin: 0; font-size: 0.9rem;">احتساب غير المكتمل
-                            كمنتهٍ عند إغلاق اليوم</label>
+                            كمنتهٍ عند إغلاق الدورة</label>
                     </div>
                 </div>
                 <p style="font-size: 0.8rem; color: #6b7280; margin-bottom: 10px;">
-                    مثال: 30 مشاركاً × حزبان لكل شخص = 60 حزباً كل يوم. مع تدوير بمقدار 2 يقرأ كل مشارك القرآن
-                    كاملاً خلال 30 يوماً.
+                    مثال: 30 مشاركاً × حزبان لكل شخص = 60 حزباً في كل دورة. مع تدوير بمقدار 2 يقرأ كل مشارك
+                    القرآن كاملاً خلال 30 دورة. مدة الدورة الافتراضية يوم واحد.
                 </p>
                 <button class="btn btn-primary" onclick="saveRotationRules()">💾 حفظ القواعد</button>
             </div>
@@ -4037,11 +4042,16 @@
                     const next = eod.finished
                         ? 'انتهى البرنامج'
                         : (eod.overdue
-                            ? `⚠️ متأخرة (${eod.next_eod}) — بانتظار إغلاق اليوم`
+                            ? `⚠️ متأخرة (${eod.next_eod}) — بانتظار إغلاق الدورة`
                             : (eod.next_eod || '-'));
-                    card.innerHTML = `🔁 <b>وضع التدوير اليومي</b> — اليوم <b>${eod.active_round || 1}</b> من <b>${eod.rotation_days || rules.rotation_days || 30}</b><br>
-                        ⏳ نهاية اليوم الحالي: <b>${next}</b><br>
-                        ✅ إغلاق اليوم: <b>${eod.require_eod_confirm ? 'بانتظار تأكيد الأدمن' : 'تلقائي'}</b>
+                    const interval = eod.rotation_interval_days || rules.rotation_interval_days || 1;
+                    const totalDays = eod.total_days || ((eod.rotation_days || rules.rotation_days || 30) * interval);
+                    const lengthLabel = interval > 1 ? `كل ${interval} أيام` : 'كل يوم';
+                    card.innerHTML = `🔁 <b>وضع التدوير</b> — الدورة <b>${eod.active_round || 1}</b> من <b>${eod.rotation_days || rules.rotation_days || 30}</b> (${lengthLabel})<br>
+                        ⏳ نهاية الدورة الحالية: <b>${next}</b><br>
+                        📅 المدة الكلية: <b>${totalDays}</b> يوماً<br>
+                        🔄 تتغيّر الأحزاب عند إغلاق الدورة<br>
+                        ✅ إغلاق الدورة: <b>${eod.require_eod_confirm ? 'بانتظار تأكيد الأدمن' : 'تلقائي'}</b>
                         ${eod.finished ? '<br>🎉 اكتمل برنامج التدوير' : ''}`;
                 } else {
                     card.style.display = 'none';
@@ -4067,7 +4077,7 @@
                     if (rules.mode === 'rotation' && (unassigned.length || shortfall || quotaWarnings.length)) {
                         let msg = '';
                         if (unassigned.length) {
-                            msg += `⚠️ يوجد <b>${unassigned.length}</b> حزباً غير موزع في اليوم الحالي (${adminBoard.coverage || 0}/60).`;
+                            msg += `⚠️ يوجد <b>${unassigned.length}</b> حزباً غير موزع في الدورة الحالية (${adminBoard.coverage || 0}/60).`;
                         }
                         if (shortfall) {
                             msg += `${msg ? '<br>' : ''}⚠️ <b>${shortfall}</b> حزباً من نصيب المشاركين لم يُسند بعد، قد يكون العدد أكبر من طاقة اليوم (60 حزباً).`;
@@ -4252,7 +4262,7 @@
                 const user = (adminBoard.users || []).find(u => String(u.id) === String(uid));
                 const label = user ? user.name : uid;
                 const ok = await customConfirm(
-                    active ? `إشراك ${label} في التدوير اليومي؟` : `استبعاد ${label} من التدوير اليومي؟ سيُحذف دوره الحالي عند بدء الدور التالي.`
+                    active ? `إشراك ${label} في التدوير؟` : `استبعاد ${label} من التدوير؟ سيُحذف دوره الحالي عند بدء الدورة التالية.`
                 );
                 if (!ok) return;
                 showLoading(true);
@@ -4314,7 +4324,7 @@
                         if (data.rotation === 'started') {
                             msg += ` وبدأ التدوير بتوزيع ${data.assigned} حزباً`;
                         } else if (data.rotation === 'advanced') {
-                            msg += ` وتوزيع ${data.assigned} حزباً في اليوم الحالي`;
+                            msg += ` وتوزيع ${data.assigned} حزباً في الدورة الحالية`;
                         } else if (data.rotation === 'round_full') {
                             msg += ` — كل أحزاب اليوم موزعة، سيشاركون ابتداءً من الدور القادم`;
                         }
@@ -4434,7 +4444,7 @@
                 const per = parseInt(document.getElementById('admin-bulk-per-person').value) || 2;
                 const startDate = (adminBoard.rules && adminBoard.rules.rotation_start_date)
                     || new Date().toISOString().slice(0, 10);
-                const ok = await customConfirm(`بدء التدوير اليومي من ${startDate} بمعدل ${per} أحزاب لكل مشارك؟ سيتم إعادة تعيين التوزيع الحالي.`);
+                const ok = await customConfirm(`بدء التدوير من ${startDate} بمعدل ${per} أحزاب لكل مشارك؟ سيتم إعادة تعيين التوزيع الحالي.`);
                 if (!ok) return;
                 showLoading(true);
                 try {
@@ -4463,7 +4473,10 @@
 
             async function adminCloseRound() {
                 if (!adminBoard) return;
-                const ok = await customConfirm('إغلاق اليوم الحالي وتدوير الأحزاب لليوم التالي؟');
+                const rules = adminBoard.rules || {};
+                const interval = rules.rotation_interval_days || 1;
+                const periodLabel = interval > 1 ? `الدورة الحالية (${interval} أيام)` : 'دورة اليوم';
+                const ok = await customConfirm(`إغلاق ${periodLabel} وتدوير الأحزاب للدورة التالية؟`);
                 if (!ok) return;
                 showLoading(true);
                 try {
@@ -4471,8 +4484,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin,
-                            complete_pending: true
+                            khatma_id: khatmaId, admin_uid: webUserUid, admin_pin: webUserPin
                         })
                     });
                     const data = await res.json();
@@ -4482,11 +4494,11 @@
                         await customAlert(
                             data.finished
                                 ? '🎉 اكتمل برنامج التدوير بفضل الله'
-                                : `تم إغلاق اليوم ${data.round} وبدء اليوم التالي`,
+                                : `تم إغلاق الدورة ${data.round} وبدء الدورة التالية`,
                             '', '🌙'
                         );
                     } else {
-                        await customAlert(data.error || 'فشل إغلاق اليوم', '', '❌');
+                        await customAlert(data.error || 'فشل إغلاق الدورة', '', '❌');
                     }
                 } catch (e) {
                     await customAlert('خطأ في الاتصال', '', '❌');
@@ -4521,6 +4533,7 @@
                 setVal('rules-per-person', r.hizbs_per_person || 2);
                 setVal('rules-step', r.rotation_step || 2);
                 setVal('rules-days', r.rotation_days || 30);
+                setVal('rules-interval-days', r.rotation_interval_days || 1);
                 setVal('rules-start-date', r.rotation_start_date || '');
                 setVal('rules-eod-time', r.eod_time || '23:59');
                 const confirmEl = document.getElementById('rules-confirm');
@@ -4537,6 +4550,7 @@
                     hizbs_per_person: parseInt(document.getElementById('rules-per-person').value) || 2,
                     rotation_step: parseInt(document.getElementById('rules-step').value) || 2,
                     rotation_days: parseInt(document.getElementById('rules-days').value) || 30,
+                    rotation_interval_days: parseInt(document.getElementById('rules-interval-days').value) || 1,
                     rotation_start_date: document.getElementById('rules-start-date').value || null,
                     eod_time: document.getElementById('rules-eod-time').value || '23:59',
                     require_eod_confirm: document.getElementById('rules-confirm').value === 'admin' ? 1 : 0,
