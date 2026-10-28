@@ -55,6 +55,7 @@
 - [x] Auto-Assignment Modal: Automatically prompt connected web users without active assignments to reserve N Hizbs sequentially or randomly, with support for all translation locales.
 - [x] Rotation Khatmas: configurable hizbs per person, bulk participant names with per-person quotas, coverage warnings, auto/admin round closing, and configurable round length (`rotation_interval_days`, default 1 day).
 - [x] Round safety: duplicate-completion guard, undo last closed round from its snapshot, and a full rotation schedule preview with CSV/print export.
+- [x] Schedule readability: matrix / by-round / by-reader views (by-round default for >12 readers), LTR-isolated hizb numbers, and view-aware print orientation.
 
 ## Known Issues (Historical)
 

@@ -74,6 +74,10 @@ The system supports multiple independent Khatmas:
 - `POST /api/admin/round/undo` exposes it; the admin board shows “↩️ تراجع عن الإغلاق” whenever a round has been closed.
 - `get_rotation_schedule()` computes the full planned reader → hizb matrix for every round without writing to the DB. `GET /api/admin/rotation/schedule` serves it (admin PIN header).
 - The “📅 جدول التدوير” modal shows the round/member matrix, per-round coverage warnings, per-member totals, CSV export (UTF-8 BOM) and a print view.
+- The schedule has three views (`🧮 مصفوفة` / `📅 حسب الدورة` / `👤 حسب القارئ`). Above 12 active readers it defaults to “حسب الدورة”, because a 15+ column matrix is unreadable and too wide.
+- Schedule numbers use the `.hizb-nums` helper (`direction:ltr; unicode-bidi:isolate; white-space:nowrap`) so RTL does not reorder “1, 2, 3”. Do **not** reuse the existing `.hizb-list` class: it carries `margin-bottom: 40px` for the reader list and inflates table rows to 73px.
+- `printSchedule()` is view-aware: portrait for round/member cards, landscape for the matrix; cards use `break-inside: avoid`.
+- Warnings cover short coverage (`<60` per round), members reading fewer than 60 hizbs, and members reading more than 60 (repeats).
 
 ## Outstanding Considerations
 

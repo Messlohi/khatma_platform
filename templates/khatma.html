@@ -1620,6 +1620,98 @@
         .schedule-table td.empty {
             color: #d1d5db;
         }
+        .hizb-nums {
+            direction: ltr;
+            unicode-bidi: isolate;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .schedule-views {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 4px 0 8px;
+        }
+        .schedule-view-btn {
+            padding: 6px 10px;
+            font-size: 0.78rem;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #374151;
+            width: auto;
+            margin: 0;
+        }
+        .schedule-view-btn.active {
+            background: #065f46;
+            color: #fff;
+            border-color: #065f46;
+        }
+        .schedule-rounds,
+        .schedule-members {
+            display: grid;
+            gap: 10px;
+        }
+        .schedule-rounds {
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        }
+        .schedule-members {
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        }
+        .schedule-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #fff;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .schedule-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 0.82rem;
+        }
+        .schedule-card-head b {
+            color: #065f46;
+        }
+        .schedule-card-head .meta {
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+        .schedule-round-entries {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 3px 12px;
+            font-size: 0.78rem;
+        }
+        .schedule-round-entries > div {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 2px 0;
+            border-bottom: 1px dashed #f3f4f6;
+        }
+        .schedule-member-rounds {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .schedule-member-rounds .chip {
+            background: #f3f4f6;
+            border-radius: 7px;
+            padding: 2px 7px;
+            font-size: 0.75rem;
+        }
+        .schedule-member-rounds .chip b {
+            color: #065f46;
+        }
         .rules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -2218,6 +2310,14 @@
                 </div>
             </div>
             <p id="schedule-summary" style="color: #6b7280; font-size: 0.85rem; margin: 10px 0;"></p>
+            <div class="schedule-views" id="schedule-views">
+                <button class="schedule-view-btn" data-view="matrix"
+                    onclick="setScheduleView('matrix')">🧮 مصفوفة</button>
+                <button class="schedule-view-btn" data-view="round"
+                    onclick="setScheduleView('round')">📅 حسب الدورة</button>
+                <button class="schedule-view-btn" data-view="member"
+                    onclick="setScheduleView('member')">👤 حسب القارئ</button>
+            </div>
             <div id="schedule-warning" class="admin-warning" style="display: none;"></div>
             <div id="schedule-table-wrap"
                 style="overflow: auto; max-height: 62vh; border: 1px solid #e5e7eb; border-radius: 12px; margin-top: 10px;">
@@ -4613,10 +4713,27 @@
             }
 
             let scheduleData = null;
+            let scheduleView = 'matrix';
 
             function closeSchedule() {
                 const modal = document.getElementById('schedule-modal');
                 if (modal) modal.style.display = 'none';
+            }
+
+            function setScheduleView(view) {
+                scheduleView = view;
+                if (scheduleData) renderSchedule(scheduleData, view);
+            }
+
+            function updateScheduleViewButtons(view) {
+                document.querySelectorAll('#schedule-views .schedule-view-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.view === view);
+                });
+            }
+
+            function hizbList(hizbs) {
+                if (!hizbs || !hizbs.length) return '<span class="empty">—</span>';
+                return `<span class="hizb-nums">${hizbs.join(', ')}</span>`;
             }
 
             async function adminShowSchedule() {
@@ -4637,7 +4754,10 @@
                         return;
                     }
                     scheduleData = data;
-                    renderSchedule(data);
+                    // A wide matrix is unreadable with many readers: default to
+                    // the per-round list, which also prints cleanly.
+                    const defaultView = (data.members || []).length > 12 ? 'round' : 'matrix';
+                    renderSchedule(data, defaultView);
                     document.getElementById('schedule-modal').style.display = 'flex';
                 } catch (e) {
                     await customAlert('خطأ في الاتصال', '', '❌');
@@ -4646,15 +4766,22 @@
                 }
             }
 
-            function renderSchedule(data) {
-                const interval = data.rotation_interval_days || 1;
-                const summary = document.getElementById('schedule-summary');
-                summary.innerHTML = `عدد الدورات: <b>${data.rotation_days}</b> · مدة الدورة: <b>${interval}</b> ${interval > 1 ? 'أيام' : 'يوم'} · المدة الكلية: <b>${data.total_days}</b> يوماً · مقدار التدوير: <b>${data.rotation_step}</b>`;
+            function renderSchedule(data, view = scheduleView) {
+                scheduleView = view;
+                updateScheduleViewButtons(view);
 
+                const interval = data.rotation_interval_days || 1;
                 const members = data.members || [];
                 const rounds = data.rounds || [];
+                const summary = document.getElementById('schedule-summary');
+                const wideHint = members.length > 12
+                    ? ' · 💡 مع هذا العدد من القراء استخدم «حسب الدورة» للعرض والطباعة'
+                    : '';
+                summary.innerHTML = `عدد الدورات: <b>${data.rotation_days}</b> · مدة الدورة: <b>${interval}</b> ${interval > 1 ? 'أيام' : 'يوم'} · المدة الكلية: <b>${data.total_days}</b> يوماً · مقدار التدوير: <b>${data.rotation_step}</b>${wideHint}`;
+
                 const lowCoverage = rounds.filter(r => (r.coverage || 0) < 60);
                 const short = members.filter(m => (m.total || 0) < 60);
+                const over = members.filter(m => (m.total || 0) > 60);
                 const warn = document.getElementById('schedule-warning');
                 let msgs = [];
                 if (!members.length) msgs.push('لا يوجد مشاركون نشطون بعد.');
@@ -4666,11 +4793,66 @@
                     const minTotal = Math.min(...short.map(m => m.total || 0));
                     msgs.push(`⚠️ ${short.length} مشاركاً لن يقرأ 60 حزباً خلال البرنامج (أقل إجمالي: ${minTotal}).`);
                 }
+                if (over.length) {
+                    const maxTotal = Math.max(...over.map(m => m.total || 0));
+                    msgs.push(`ℹ️ ${over.length} مشاركاً سيقرأ أكثر من 60 حزباً (حتى ${maxTotal}) — أي سيعيد بعض الأحزاب. قلّل النصيب أو مقدار التدوير إن لم يكن ذلك مقصوداً.`);
+                }
                 if (msgs.length) {
                     warn.innerHTML = msgs.join('<br>');
                     warn.style.display = 'block';
                 } else {
                     warn.style.display = 'none';
+                }
+
+                const wrap = document.getElementById('schedule-table-wrap');
+                if (view === 'round') {
+                    let html = '<div class="schedule-rounds">';
+                    rounds.forEach(r => {
+                        const dateLabel = !r.start_date
+                            ? ''
+                            : (r.start_date === r.end_date ? r.start_date : `${r.start_date} ← ${r.end_date}`);
+                        html += `<div class="schedule-card">
+                            <div class="schedule-card-head">
+                                <b>الدورة ${r.round}</b>
+                                <span class="meta">${dateLabel}</span>
+                                <span class="meta">${r.coverage || 0}/60</span>
+                            </div>
+                            <div class="schedule-round-entries">`;
+                        (r.entries || []).forEach(e => {
+                            html += `<div><span>${escapeHtml(e.name)}</span><span>${hizbList(e.hizbs)}</span></div>`;
+                        });
+                        html += '</div></div>';
+                    });
+                    html += '</div>';
+                    wrap.innerHTML = html;
+                    return;
+                }
+
+                if (view === 'member') {
+                    const byMember = new Map();
+                    rounds.forEach(r => {
+                        (r.entries || []).forEach(e => {
+                            if (!byMember.has(e.uid)) byMember.set(e.uid, []);
+                            byMember.get(e.uid).push({ round: r.round, hizbs: e.hizbs || [] });
+                        });
+                    });
+                    let html = '<div class="schedule-members">';
+                    members.forEach(m => {
+                        const entries = byMember.get(m.uid) || [];
+                        html += `<div class="schedule-card">
+                            <div class="schedule-card-head">
+                                <b>${escapeHtml(m.name)}</b>
+                                <span class="meta">${m.total || 0} حزباً · ${m.per} في الدورة</span>
+                            </div>
+                            <div class="schedule-member-rounds">`;
+                        entries.forEach(e => {
+                            html += `<span class="chip"><b>${e.round}</b> ${hizbList(e.hizbs)}</span>`;
+                        });
+                        html += '</div></div>';
+                    });
+                    html += '</div>';
+                    wrap.innerHTML = html;
+                    return;
                 }
 
                 let html = '<table class="schedule-table"><thead><tr><th>الدورة</th><th>التاريخ</th>';
@@ -4682,12 +4864,12 @@
                         : (r.start_date === r.end_date ? r.start_date : `${r.start_date} ← ${r.end_date}`);
                     html += `<tr><td class="round-col">${r.round}</td><td>${dateLabel}</td>`;
                     (r.entries || []).forEach(e => {
-                        html += `<td class="${e.hizbs && e.hizbs.length ? '' : 'empty'}">${e.hizbs && e.hizbs.length ? e.hizbs.join(', ') : '—'}</td>`;
+                        html += `<td class="${e.hizbs && e.hizbs.length ? '' : 'empty'}">${hizbList(e.hizbs)}</td>`;
                     });
                     html += '</tr>';
                 });
                 html += '</tbody></table>';
-                document.getElementById('schedule-table-wrap').innerHTML = html;
+                wrap.innerHTML = html;
             }
 
             function downloadScheduleCsv() {
@@ -4717,8 +4899,9 @@
 
             function printSchedule() {
                 if (!scheduleData) return;
-                const table = document.getElementById('schedule-table-wrap').innerHTML;
+                const content = document.getElementById('schedule-table-wrap').innerHTML;
                 const summary = document.getElementById('schedule-summary').innerText;
+                const landscape = scheduleView === 'matrix';
                 const win = window.open('', '_blank');
                 if (!win) {
                     customAlert('يرجى السماح بالنوافذ المنبثقة للطباعة', '', '🖨️');
@@ -4727,15 +4910,28 @@
                 win.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
                     <title>جدول التدوير</title>
                     <style>
-                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 18px; color: #111; }
-                        h1 { font-size: 18px; margin: 0 0 6px; }
-                        p { font-size: 12px; color: #444; margin: 0 0 12px; }
-                        table { border-collapse: collapse; width: 100%; font-size: 10px; }
-                        th, td { border: 1px solid #999; padding: 4px; text-align: center; }
-                        thead th { background: #065f46; color: #fff; }
-                        tr:nth-child(even) td { background: #f3f4f6; }
+                        @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 10mm; }
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 0; color: #111; }
+                        h1 { font-size: 16px; margin: 0 0 4px; }
+                        p { font-size: 11px; color: #444; margin: 0 0 10px; }
+                        .hizb-nums { direction: ltr; unicode-bidi: isolate; display: inline-block; white-space: nowrap; }
+                        .schedule-table { border-collapse: collapse; width: 100%; font-size: 8px; }
+                        .schedule-table th, .schedule-table td { border: 1px solid #999; padding: 2px 3px; text-align: center; white-space: nowrap; }
+                        .schedule-table thead th { background: #065f46; color: #fff; }
+                        .schedule-table tr:nth-child(even) td { background: #f3f4f6; }
+                        .schedule-table td.round-col { background: #ecfdf5; font-weight: bold; }
+                        .schedule-rounds, .schedule-members { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+                        .schedule-card { border: 1px solid #bbb; border-radius: 8px; padding: 6px 8px; break-inside: avoid; page-break-inside: avoid; }
+                        .schedule-card-head { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 4px; font-size: 10px; }
+                        .schedule-card-head b { color: #065f46; }
+                        .schedule-card-head .meta { color: #555; font-size: 9px; }
+                        .schedule-round-entries { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; font-size: 9px; }
+                        .schedule-round-entries > div { display: flex; justify-content: space-between; gap: 6px; border-bottom: 1px dotted #eee; padding: 1px 0; }
+                        .schedule-member-rounds { display: flex; flex-wrap: wrap; gap: 2px; font-size: 9px; }
+                        .schedule-member-rounds .chip { border: 1px solid #ddd; border-radius: 5px; padding: 1px 4px; }
+                        .schedule-member-rounds .chip b { color: #065f46; }
                     </style></head><body>
-                    <h1>جدول التدوير</h1><p>${escapeHtml(summary)}</p>${table}
+                    <h1>جدول التدوير</h1><p>${escapeHtml(summary)}</p>${content}
                     </body></html>`);
                 win.document.close();
                 win.focus();

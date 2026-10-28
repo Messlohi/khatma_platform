@@ -16,6 +16,8 @@
 - [x] Guard against duplicate completions with a unique index and `INSERT OR IGNORE`
 - [x] Add “تراجع عن الإغلاق” to reopen the last round from its snapshot
 - [x] Add a rotation schedule preview with coverage warnings, CSV export and print view
+- [x] Add schedule view switcher (matrix / by round / by reader) with a by-round default above 12 readers
+- [x] Fix schedule readability for many readers: LTR-isolated hizb numbers, nowrap cells, view-aware print orientation
 - [x] Regression tests for duplicate guard, undo, schedule and auth (`enhancements_test.py`)
 
 All tasks completed:

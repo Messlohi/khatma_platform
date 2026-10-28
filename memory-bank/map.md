@@ -64,7 +64,7 @@
 
 ### Templates
 
-- **[templates/khatma.html](templates/khatma.html:1)**: Main Khatma UI (full-featured)
+- **[templates/khatma.html](templates/khatma.html:1)**: Main Khatma UI (full-featured). Admin schedule modal has matrix / by-round / by-reader views, CSV export and view-aware printing.
 - **[templates/khatma_simple.html](templates/khatma_simple.html:1)**: Simplified Khatma UI
 - **[templates/developer.html](templates/developer.html:1)**: Developer/admin dashboard
 - **[templates/index.html](templates/index.html:1)**: Landing page
